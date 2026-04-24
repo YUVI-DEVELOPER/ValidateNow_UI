@@ -40,24 +40,16 @@ export function LoginPage({ onLogin }: LoginPageProps) {
             </svg>
           </div>
           <div>
-            <div className="text-white font-bold text-base tracking-wide">ValidateNow</div>
-            <div className="text-slate-500 text-xs">Enterprise Admin Portal</div>
+            <div className="text-white font-bold text-base tracking-wide">Compliance Manager</div>
           </div>
         </div>
 
         {/* Hero content */}
         <div>
-          <div className="inline-flex items-center gap-2 bg-blue-600/10 border border-blue-500/20 rounded-full px-3 py-1.5 mb-6">
-            <div className="w-1.5 h-1.5 rounded-full bg-blue-400" />
-            <span className="text-blue-300 text-xs font-medium">Enterprise Edition v2.4</span>
-          </div>
           <h1 className="text-white text-3xl font-bold leading-tight mb-4">
             Manage your<br />organization with<br />
             <span className="text-blue-400">full confidence.</span>
           </h1>
-          <p className="text-slate-400 text-sm leading-relaxed">
-            ValidateNow centralizes your org hierarchy, supplier network, and configuration data in one unified admin platform — built for scale.
-          </p>
 
           {/* Feature list */}
           <div className="mt-8 flex flex-col gap-3">
@@ -70,7 +62,6 @@ export function LoginPage({ onLogin }: LoginPageProps) {
                 <span className="text-base mt-0.5">{item.icon}</span>
                 <div>
                   <div className="text-slate-200 text-sm font-medium">{item.label}</div>
-                  <div className="text-slate-500 text-xs mt-0.5">{item.desc}</div>
                 </div>
               </div>
             ))}
@@ -79,13 +70,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
 
         {/* Footer */}
         <div className="flex items-center justify-between">
-          <span className="text-slate-600 text-xs">© 2026 ValidateNow Corp.</span>
-          <span className="flex items-center gap-1.5 text-slate-600 text-xs">
-            <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
-            </svg>
-            256-bit SSL Secured
-          </span>
+          <span className="text-slate-600 text-xs">© 2026 Compliance Manager</span>
         </div>
       </div>
 
@@ -99,12 +84,11 @@ export function LoginPage({ onLogin }: LoginPageProps) {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
               </svg>
             </div>
-            <span className="text-slate-900 font-bold text-base">ValidateNow</span>
+            <span className="text-slate-900 font-bold text-base">Compliance Manager</span>
           </div>
 
           <div className="mb-8">
             <h2 className="text-slate-900 text-2xl font-bold">Welcome back</h2>
-            <p className="text-slate-500 text-sm mt-1">Sign in to your admin account to continue.</p>
           </div>
 
           {/* SSO button */}
@@ -186,10 +170,6 @@ export function LoginPage({ onLogin }: LoginPageProps) {
             </Button>
           </form>
 
-          <p className="text-center text-xs text-slate-400 mt-6">
-            Having trouble signing in?{" "}
-            <a href="#" className="text-blue-600 hover:underline">Contact IT Support</a>
-          </p>
         </div>
       </div>
     </div>

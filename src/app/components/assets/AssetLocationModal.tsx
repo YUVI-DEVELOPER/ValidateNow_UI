@@ -190,11 +190,8 @@ export function AssetLocationModal({
         </div>
 
         <section className="space-y-4 rounded-xl border border-slate-200 bg-slate-50/70 p-4">
-          <div className="space-y-1">
+          <div>
             <h4 className="text-sm font-semibold text-slate-900">Physical Placement</h4>
-            <p className="text-xs text-slate-500">
-              Site ownership already comes from the asset&apos;s org/entity link. Capture only the exact placement inside that site or premise.
-            </p>
           </div>
 
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -231,7 +228,6 @@ export function AssetLocationModal({
                 maxLength={150}
                 required
               />
-              <p className="text-xs text-slate-500">Use room, bay, area, line, rack, or another local spot identifier.</p>
               <FieldError error={fieldErrors.local_reference} />
             </div>
 

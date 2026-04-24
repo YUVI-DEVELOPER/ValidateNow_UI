@@ -5,7 +5,7 @@ import { Input, Toggle } from "../components/ui/Input";
 import { Checkbox } from "../components/ui/checkbox";
 import { Modal, ConfirmDialog } from "../components/ui/Modal";
 import { NavPage } from "../components/layout/AppSidebar";
-import { CommonPageHeader } from "../components/layout/CommonPageHeader";
+import { CommonPageHeader, PAGE_CONTENT_CLASS, PAGE_LAYOUT_SHELL_CLASS } from "../components/layout/CommonPageHeader";
 import { buildPageHeaderStats, getPageHeaderConfig } from "../components/layout/pageHeaderConfig";
 import { downloadCsv } from "../components/importExport/csv";
 import { LookupMaster, getAllMasters } from "../services/lookupMaster.service";
@@ -362,12 +362,12 @@ export function LookupValuesPage({ onNavigate }: LookupValuesPageProps) {
   };
 
   return (
-    <div className="p-6 space-y-4">
+    <div className={PAGE_LAYOUT_SHELL_CLASS}>
       <CommonPageHeader
         breadcrumbs={header.breadcrumbs}
         sectionLabel={header.sectionLabel}
         title={header.title}
-        subtitle={selectedMaster ? `${selectedMaster.description || "Selected lookup category"} • ${selectedMaster.key}` : header.subtitle}
+        subtitle={selectedMaster ? `${selectedMaster.description || "Selected lookup category"} - ${selectedMaster.key}` : header.subtitle}
         search={header.searchPlaceholder ? {
           value: search,
           placeholder: header.searchPlaceholder,
@@ -401,55 +401,56 @@ export function LookupValuesPage({ onNavigate }: LookupValuesPageProps) {
         ]}
       />
 
-      {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
-      )}
+      <div className={PAGE_CONTENT_CLASS}>
+        {error && (
+          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
+        )}
 
-      <Card className="p-4">
-        <div className="flex items-center gap-4 flex-wrap">
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider shrink-0">Filter by Key:</span>
-            <div className="flex gap-1 flex-wrap">
-              {masters.map((master) => (
-                <button
-                  key={master.id}
-                  type="button"
-                  onClick={() => {
-                    setSelectedMasterId(master.id);
-                    setSelectedId(null);
-                    setSearch("");
-                  }}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold font-mono transition-all ${
-                    master.id === selectedMasterId
-                      ? "bg-blue-600 text-white shadow-sm"
-                      : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                  }`}
-                >
-                  {master.key}
-                </button>
-              ))}
+        <Card className="p-4">
+          <div className="flex items-center gap-4 flex-wrap">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider shrink-0">Filter by Key:</span>
+              <div className="flex gap-1 flex-wrap">
+                {masters.map((master) => (
+                  <button
+                    key={master.id}
+                    type="button"
+                    onClick={() => {
+                      setSelectedMasterId(master.id);
+                      setSelectedId(null);
+                      setSearch("");
+                    }}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold font-mono transition-all ${
+                      master.id === selectedMasterId
+                        ? "bg-blue-600 text-white shadow-sm"
+                        : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                    }`}
+                  >
+                    {master.key}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </Card>
+
+        <div className="flex items-center gap-4 rounded-xl border border-slate-200 bg-white px-4 py-3">
+          <div className="flex items-center gap-3">
+            <div className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 font-mono text-base font-bold text-blue-700">
+              {selectedMaster?.key ?? "-"}
+            </div>
+            <div>
+              <div className="text-sm font-medium text-slate-700">{selectedMaster?.description || "Select a lookup category"}</div>
+              <div className="text-xs text-slate-400">
+                {valuesForMaster.length} total values - {valuesForMaster.filter((value) => value.active).length} active
+              </div>
             </div>
           </div>
         </div>
-      </Card>
 
-      <div className="flex items-center gap-4 rounded-xl border border-slate-200 bg-white px-4 py-3">
-        <div className="flex items-center gap-3">
-          <div className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 font-mono text-base font-bold text-blue-700">
-            {selectedMaster?.key ?? "-"}
-          </div>
-          <div>
-            <div className="text-sm font-medium text-slate-700">{selectedMaster?.description || "Select a lookup category"}</div>
-            <div className="text-xs text-slate-400">
-              {valuesForMaster.length} total values • {valuesForMaster.filter((value) => value.active).length} active
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-12 gap-4">
-        <div className="col-span-8">
-          <Card padding="none">
+        <div className="grid grid-cols-12 gap-4">
+          <div className="col-span-8">
+            <Card padding="none">
             <CardHeader
               title={`Values: ${selectedMaster?.key ?? "-"}`}
               description={loading ? "Loading..." : `${filtered.length} results`}
@@ -577,11 +578,11 @@ export function LookupValuesPage({ onNavigate }: LookupValuesPageProps) {
                 </tbody>
               </table>
             </div>
-          </Card>
-        </div>
+            </Card>
+          </div>
 
-        <div className="col-span-4 flex flex-col gap-4">
-          <Card padding="none">
+          <div className="col-span-4 flex flex-col gap-4">
+            <Card padding="none">
             <CardHeader title="Value Detail" />
             <CardBody>
               {selected ? (
@@ -620,7 +621,7 @@ export function LookupValuesPage({ onNavigate }: LookupValuesPageProps) {
                   </div>
                 </div>
               ) : (
-                <div className="text-center text-sm text-slate-400 py-4">Select a row to view details</div>
+                <div className="text-center text-sm text-slate-400 py-4">No value selected.</div>
               )}
             </CardBody>
 {selected && (
@@ -632,7 +633,7 @@ export function LookupValuesPage({ onNavigate }: LookupValuesPageProps) {
             )}
           </Card>
 
-          <Card padding="none">
+            <Card padding="none">
             <CardHeader title="Quick Add Value" />
             <CardBody className="px-4 pb-4">
               <form className="space-y-3" onSubmit={(event) => void handleQuickAddSubmit(event)}>
@@ -701,7 +702,8 @@ export function LookupValuesPage({ onNavigate }: LookupValuesPageProps) {
                 </Button>
               </form>
             </CardBody>
-          </Card>
+            </Card>
+          </div>
         </div>
       </div>
 
@@ -819,3 +821,4 @@ export function LookupValuesPage({ onNavigate }: LookupValuesPageProps) {
     </div>
   );
 }
+

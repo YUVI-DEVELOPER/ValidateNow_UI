@@ -133,7 +133,6 @@ export function OrgTreePanel({ orgTree, selectedOrgId, onSelectOrg }: OrgTreePan
       {/* Header */}
       <div className="p-4 border-b border-slate-200">
         <h3 className="font-semibold text-slate-900">Organizations</h3>
-        <p className="text-xs text-slate-500 mt-1">Select an organization to filter assets</p>
       </div>
 
       {/* Clear selection button */}

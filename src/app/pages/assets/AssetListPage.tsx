@@ -1,4 +1,4 @@
-﻿import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast, Toaster } from "sonner";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
@@ -42,7 +42,7 @@ import {
 } from "../../components/ui/alert-dialog";
 import { CsvImportModal } from "../../components/importExport/CsvImportModal";
 import { downloadCsv } from "../../components/importExport/csv";
-import { CommonPageHeader } from "../../components/layout/CommonPageHeader";
+import { CommonPageHeader, PAGE_CONTENT_CLASS, PAGE_LAYOUT_SHELL_CLASS } from "../../components/layout/CommonPageHeader";
 import { buildPageHeaderStats, getPageHeaderConfig } from "../../components/layout/pageHeaderConfig";
 
 interface AssetListPageProps {
@@ -331,7 +331,7 @@ export function AssetListPage({ onNavigate }: AssetListPageProps) {
   });
 
   return (
-    <div className="p-6 space-y-4">
+    <div className={PAGE_LAYOUT_SHELL_CLASS}>
       <CommonPageHeader
         breadcrumbs={header.breadcrumbs}
         sectionLabel={header.sectionLabel}
@@ -368,28 +368,30 @@ export function AssetListPage({ onNavigate }: AssetListPageProps) {
         ]}
       />
 
-      {/* Table */}
-      <div className="space-y-4">
-        <AssetTable
-          assets={paginatedAssets}
-          loading={loading}
-          searchQuery={searchQuery}
-          orgTree={orgTree}
-          suppliers={supplierList}
-          assetClasses={assetClasses}
-          assetTypes={assetTypes}
-          assetStatuses={assetStatuses}
-          criticalities={criticalities}
-          onView={handleView}
-          onEdit={handleEdit}
-          onDelete={handleDeleteClick}
-        />
+      <div className={PAGE_CONTENT_CLASS}>
+        {/* Table */}
+        <div className="space-y-4">
+          <AssetTable
+            assets={paginatedAssets}
+            loading={loading}
+            searchQuery={searchQuery}
+            orgTree={orgTree}
+            suppliers={supplierList}
+            assetClasses={assetClasses}
+            assetTypes={assetTypes}
+            assetStatuses={assetStatuses}
+            criticalities={criticalities}
+            onView={handleView}
+            onEdit={handleEdit}
+            onDelete={handleDeleteClick}
+          />
 
-        <div className="flex items-center justify-between px-2">
-          <div className="text-sm text-slate-500">
-            Total: <span className="font-medium text-slate-700">{assets.length}</span>
+          <div className="flex items-center justify-between px-2">
+            <div className="text-sm text-slate-500">
+              Total: <span className="font-medium text-slate-700">{assets.length}</span>
+            </div>
+            <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} />
           </div>
-          <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} />
         </div>
       </div>
 
@@ -624,4 +626,5 @@ export function AssetListPage({ onNavigate }: AssetListPageProps) {
     </div>
   );
 }
+
 

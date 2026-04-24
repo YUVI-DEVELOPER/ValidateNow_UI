@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+﻿import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { toast, Toaster } from "sonner";
 
 import {
@@ -230,7 +230,7 @@ export function AssetInventoryReportingPage() {
     : "No assets matched the current inventory report filters.";
 
   return (
-    <div className="space-y-4 p-6">
+    <div className="space-y-4">
       <CommonPageHeader
         breadcrumbs={header.breadcrumbs}
         sectionLabel={header.sectionLabel}
@@ -408,3 +408,4 @@ export function AssetInventoryReportingPage() {
     </div>
   );
 }
+

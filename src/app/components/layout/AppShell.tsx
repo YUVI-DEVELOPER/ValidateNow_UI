@@ -14,8 +14,10 @@ export function AppShell({ activePage, onNavigate, children }: AppShellProps) {
       <AppSidebar activePage={activePage} onNavigate={onNavigate} />
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         <AppHeader />
-        <main className="flex-1 overflow-y-auto bg-slate-50">
-          {children}
+        <main className="min-h-0 flex-1 overflow-y-auto bg-slate-50">
+          <div className="min-h-full">
+            {children}
+          </div>
         </main>
       </div>
     </div>

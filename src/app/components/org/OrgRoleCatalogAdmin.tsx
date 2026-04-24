@@ -75,14 +75,6 @@ const roleTypeColors: Record<string, string> = {
 const getBadgeClass = (code: string, palette: Record<string, string>): string =>
   palette[code.toUpperCase()] || "bg-slate-100 text-slate-700 border-slate-200";
 
-const summaryToneStyles = {
-  blue: { dot: "bg-blue-500", value: "text-blue-700", hint: "text-blue-600/80" },
-  emerald: { dot: "bg-emerald-500", value: "text-emerald-700", hint: "text-emerald-600/80" },
-  amber: { dot: "bg-amber-500", value: "text-amber-700", hint: "text-amber-600/80" },
-  violet: { dot: "bg-violet-500", value: "text-violet-700", hint: "text-violet-600/80" },
-  slate: { dot: "bg-slate-400", value: "text-slate-800", hint: "text-slate-500" },
-} as const;
-
 const extractMessage = (error: unknown): string => {
   if (!axios.isAxiosError(error)) {
     return error instanceof Error ? error.message : "Unexpected error occurred";
@@ -114,37 +106,21 @@ const toActionForm = (action?: OrgRoleAction | null): ActionFormState =>
       }
     : { ...EMPTY_ACTION_FORM };
 
-const SummaryTile = ({
-  label,
-  value,
-  hint,
-  tone = "slate",
-}: {
-  label: string;
-  value: string;
-  hint: string;
-  tone?: keyof typeof summaryToneStyles;
-}) => (
-  <div className="rounded-lg border border-slate-200 bg-white px-3 py-2 shadow-sm">
-    <div className="flex items-start justify-between gap-3">
-      <div className="min-w-0">
-        <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">{label}</div>
-        <div className={`mt-1 text-base font-semibold leading-none ${summaryToneStyles[tone].value}`}>{value}</div>
-      </div>
-      <span className={`mt-1 h-2.5 w-2.5 shrink-0 rounded-full ${summaryToneStyles[tone].dot}`} />
-    </div>
-    <p className={`mt-1.5 text-[11px] leading-4 ${summaryToneStyles[tone].hint}`}>{hint}</p>
-  </div>
-);
-
 interface OrgRoleCatalogAdminProps {
   disabled?: boolean;
   defaultUser?: string;
+  onCatalogSummaryChange?: (summary: {
+    totalRoles: number;
+    activeRoles: number;
+    activeAssignments: number;
+    standardActivities: number;
+  }) => void;
 }
 
 export function OrgRoleCatalogAdmin({
   disabled = false,
   defaultUser = "admin@validatenow",
+  onCatalogSummaryChange,
 }: OrgRoleCatalogAdminProps) {
   const [roles, setRoles] = useState<OrgRole[]>([]);
   const [selectedRoleId, setSelectedRoleId] = useState<string | null>(null);
@@ -247,6 +223,10 @@ export function OrgRoleCatalogAdmin({
     activeAssignments: roles.reduce((sum, role) => sum + role.active_assignment_count, 0),
     standardActivities: roles.reduce((sum, role) => sum + role.action_count, 0),
   }), [roles]);
+
+  useEffect(() => {
+    onCatalogSummaryChange?.(catalogSummary);
+  }, [catalogSummary, onCatalogSummaryChange]);
   const resolveRoleRaciLabel = useCallback((code: string) => getLookupLabel(code, roleRaciLabelMap), [roleRaciLabelMap]);
   const resolveRoleTypeLabel = useCallback((code: string) => getLookupLabel(code, roleTypeLabelMap), [roleTypeLabelMap]);
   const resolveActionTypeLabel = useCallback((code: string) => getLookupLabel(code, actionTypeLabelMap), [actionTypeLabelMap]);
@@ -417,48 +397,6 @@ export function OrgRoleCatalogAdmin({
     <>
       {error && <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
 
-      <Card padding="none" className="overflow-hidden border-slate-200 bg-[linear-gradient(135deg,rgba(248,250,252,1),rgba(240,249,255,1))] shadow-sm">
-        <CardBody className="grid gap-6 px-6 py-6 lg:grid-cols-[minmax(0,1.7fr)_minmax(320px,1fr)]">
-          <div>
-            <div className="inline-flex items-center rounded-full border border-slate-200 bg-white/85 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-slate-600">
-              Governance Role Library
-            </div>
-            <h2 className="mt-4 text-2xl font-semibold text-slate-900">Reusable accountability roles for enterprise operations</h2>
-            <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-              Define standard governance roles once, organize their expected activities, and reuse them across the organization
-              structure with consistent business language.
-            </p>
-          </div>
-
-          <div className="grid gap-3 sm:grid-cols-2">
-            <SummaryTile
-              label="Roles"
-              value={String(catalogSummary.totalRoles)}
-              hint="Reusable governance roles in the library"
-              tone="blue"
-            />
-            <SummaryTile
-              label="Active Roles"
-              value={String(catalogSummary.activeRoles)}
-              hint="Roles currently available for assignment"
-              tone="emerald"
-            />
-            <SummaryTile
-              label="Assignments"
-              value={String(catalogSummary.activeAssignments)}
-              hint="Active accountability assignments across the enterprise"
-              tone="amber"
-            />
-            <SummaryTile
-              label="Activities"
-              value={String(catalogSummary.standardActivities)}
-              hint="Standard governance activities defined in playbooks"
-              tone="violet"
-            />
-          </div>
-        </CardBody>
-      </Card>
-
       <div className="grid gap-4 xl:grid-cols-[380px_minmax(0,1fr)]">
         <Card padding="none" className="border-slate-200 shadow-sm">
           <CardHeader
@@ -542,7 +480,7 @@ export function OrgRoleCatalogAdmin({
             {detailLoading && <div className="text-sm text-slate-500">Loading governance role details...</div>}
             {!detailLoading && !selectedRole && (
               <div className="rounded-2xl border border-dashed border-slate-200 px-4 py-5 text-sm text-slate-500">
-                Select a governance role from the library to review its ownership model and standard activities.
+                No governance role selected.
               </div>
             )}
             {!detailLoading && selectedRole && (
@@ -551,17 +489,14 @@ export function OrgRoleCatalogAdmin({
                   <div className="rounded-2xl border border-slate-200 bg-white p-4">
                     <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Owning Function</div>
                     <div className="mt-2 text-lg font-semibold text-slate-900">{selectedRole.ownership}</div>
-                    <p className="mt-2 text-sm text-slate-500">Primary business function accountable for this role.</p>
                   </div>
                   <div className="rounded-2xl border border-slate-200 bg-white p-4">
                     <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Active Assignments</div>
                     <div className="mt-2 text-2xl font-semibold text-slate-900">{selectedRole.active_assignment_count}</div>
-                    <p className="mt-2 text-sm text-slate-500">Current enterprise assignments linked to this role.</p>
                   </div>
                   <div className="rounded-2xl border border-slate-200 bg-white p-4">
                     <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Standard Activities</div>
                     <div className="mt-2 text-2xl font-semibold text-slate-900">{selectedRole.actions.length}</div>
-                    <p className="mt-2 text-sm text-slate-500">Expected governance activities in the role playbook.</p>
                   </div>
                 </div>
 
@@ -590,7 +525,6 @@ export function OrgRoleCatalogAdmin({
                 <div>
                   <div className="mb-3">
                     <h3 className="text-sm font-semibold text-slate-900">Standard Activities</h3>
-                    <p className="text-sm text-slate-500">The ordered set of business activities expected from this governance role.</p>
                   </div>
                   {selectedRole.actions.length === 0 ? (
                     <div className="rounded-2xl border border-dashed border-slate-200 px-4 py-5 text-sm text-slate-500">

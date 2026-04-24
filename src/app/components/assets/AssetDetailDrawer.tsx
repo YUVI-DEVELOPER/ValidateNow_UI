@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+﻿import React, { useCallback, useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import { toast } from "sonner";
 import { Drawer } from "../ui/Modal";
@@ -29,6 +29,7 @@ import {
   deleteDocumentLink,
   DocumentLinkRecord,
   getAssetDocuments,
+  reprocessDocumentVectorization,
 } from "../../../services/document-link.service";
 import {
   deleteRelease,
@@ -45,7 +46,10 @@ import {
   getAssetStatusBadgeClass,
   getCriticalityBadgeClass,
 } from "./assetForm.shared";
+import { AuthoredDocumentPanel } from "./AuthoredDocumentPanel";
 import { AssetDocumentTable } from "./AssetDocumentTable";
+import { AssetDocumentHubPanel } from "./AssetDocumentHubPanel";
+import { AssetRagInsightsPanel } from "./AssetRagInsightsPanel";
 import { AssetFinanceModal } from "./AssetFinanceModal";
 import { AssetLifecycleTimeline } from "./AssetLifecycleTimeline";
 import { AssetLocationModal } from "./AssetLocationModal";
@@ -54,8 +58,11 @@ import { CreateDocumentLinkModal } from "./CreateDocumentLinkModal";
 import { CreateReleaseModal } from "./CreateReleaseModal";
 import { EditDocumentLinkModal } from "./EditDocumentLinkModal";
 import { EditReleaseModal } from "./EditReleaseModal";
+import { QualificationDocumentPanel } from "./QualificationDocumentPanel";
+import { SupplierEvaluationPanel } from "./SupplierEvaluationPanel";
 import {
   DocumentLinkContext,
+  isDocumentVectorizationActive,
   mapDocumentLinkAxiosError,
   useOmsSourceSystemOptions,
 } from "./documentLinkForm.shared";
@@ -63,7 +70,15 @@ import { ReleaseAssessmentModal } from "./ReleaseAssessmentModal";
 import { ReleaseDocumentsModal } from "./ReleaseDocumentsModal";
 import { mapReleaseAxiosError } from "./releaseForm.shared";
 
-export type AssetDetailTab = "overview" | "location" | "finance" | "releases" | "documents";
+export type AssetDetailTab =
+  | "overview"
+  | "location"
+  | "finance"
+  | "releases"
+  | "supplier-evaluation"
+  | "document-hub"
+  | "rag-insights"
+  | "documents";
 
 interface AssetDetailDrawerProps {
   open: boolean;
@@ -195,7 +210,7 @@ export function AssetDetailDrawer({
   const [assessmentReleaseId, setAssessmentReleaseId] = useState<string | null>(null);
   const [assessmentReloadToken, setAssessmentReloadToken] = useState(0);
   const { options: sourceSystemOptions } = useOmsSourceSystemOptions(
-    open && (activeTab === "documents" || Boolean(releaseDocumentsTarget)),
+    open && (activeTab === "documents" || activeTab === "document-hub" || activeTab === "rag-insights" || activeTab === "supplier-evaluation" || Boolean(releaseDocumentsTarget)),
   );
 
   useEffect(() => {
@@ -302,18 +317,26 @@ export function AssetDetailDrawer({
     }
   }, [assetId]);
 
-  const loadDocuments = useCallback(async () => {
+  const loadDocuments = useCallback(async (options: { silent?: boolean } = {}) => {
     if (!assetId) return;
 
-    setDocumentsLoading(true);
+    if (!options.silent) {
+      setDocumentsLoading(true);
+    }
     try {
       const data = await getAssetDocuments(assetId);
       setDocuments(data);
     } catch (error) {
-      const mapped = mapDocumentLinkAxiosError(error);
-      toast.error(mapped.message);
+      if (options.silent) {
+        console.error("Failed to refresh document vectorization status:", error);
+      } else {
+        const mapped = mapDocumentLinkAxiosError(error);
+        toast.error(mapped.message);
+      }
     } finally {
-      setDocumentsLoading(false);
+      if (!options.silent) {
+        setDocumentsLoading(false);
+      }
     }
   }, [assetId]);
 
@@ -324,7 +347,7 @@ export function AssetDetailDrawer({
       return;
     }
 
-    if (activeTab !== "releases") return;
+    if (activeTab !== "releases" && activeTab !== "documents") return;
     void loadReleases();
   }, [activeTab, assetId, loadReleases, open]);
 
@@ -361,6 +384,21 @@ export function AssetDetailDrawer({
     void loadDocuments();
   }, [activeTab, assetId, loadDocuments, open]);
 
+  const hasActiveDocumentVectorization = useMemo(
+    () => documents.some(isDocumentVectorizationActive),
+    [documents],
+  );
+
+  useEffect(() => {
+    if (!open || !assetId || activeTab !== "documents" || !hasActiveDocumentVectorization) return;
+
+    const intervalId = window.setInterval(() => {
+      void loadDocuments({ silent: true });
+    }, 3000);
+
+    return () => window.clearInterval(intervalId);
+  }, [activeTab, assetId, hasActiveDocumentVectorization, loadDocuments, open]);
+
   const orgMap = useMemo(() => buildOrgMap(orgTree), [orgTree]);
   const supplierMap = useMemo(
     () => new Map<string, string>(suppliers.map((item) => [item.supplier_id, item.supplier_name])),
@@ -378,6 +416,26 @@ export function AssetDetailDrawer({
   const assetDocumentContext: DocumentLinkContext = useMemo(
     () => ({
       type: "asset",
+      assetId,
+      assetName: asset?.asset_name ?? null,
+      assetCode: asset?.asset_id ?? null,
+      assetVersion: asset?.asset_version ?? null,
+    }),
+    [asset?.asset_id, asset?.asset_name, asset?.asset_version, assetId],
+  );
+  const assetAuthoredDocumentContext = useMemo(
+    () => ({
+      type: "asset" as const,
+      assetId,
+      assetName: asset?.asset_name ?? null,
+      assetCode: asset?.asset_id ?? null,
+      assetVersion: asset?.asset_version ?? null,
+    }),
+    [asset?.asset_id, asset?.asset_name, asset?.asset_version, assetId],
+  );
+  const assetQualificationDocumentContext = useMemo(
+    () => ({
+      type: "asset" as const,
       assetId,
       assetName: asset?.asset_name ?? null,
       assetCode: asset?.asset_id ?? null,
@@ -455,6 +513,17 @@ export function AssetDetailDrawer({
     }
   };
 
+  const handleReprocessDocument = async (document: DocumentLinkRecord) => {
+    try {
+      await reprocessDocumentVectorization(document.document_link_id);
+      toast.success("Document vectorization queued");
+      await loadDocuments({ silent: true });
+    } catch (error) {
+      const mapped = mapDocumentLinkAxiosError(error);
+      toast.error(mapped.message);
+    }
+  };
+
   const handleConfirmDeleteFinance = async () => {
     if (!assetId) return;
 
@@ -519,7 +588,7 @@ export function AssetDetailDrawer({
         onClose={onClose}
         title="Asset Master Detail"
         description="Enterprise asset record grouped for business, operational, and release review."
-        width="w-[42rem]"
+        width="w-[calc(100vw-1rem)] max-w-[calc(100vw-1rem)] lg:w-[calc(100vw-15rem)]"
       >
         <div className="p-5">
           {loading ? (
@@ -532,7 +601,7 @@ export function AssetDetailDrawer({
               onValueChange={(value) => setActiveTab(value as AssetDetailTab)}
               className="gap-4"
             >
-              <TabsList className="bg-slate-100">
+              <TabsList className="h-auto flex-wrap justify-start bg-slate-100">
                 <TabsTrigger value="overview" className="px-4">
                   Overview
                 </TabsTrigger>
@@ -544,6 +613,15 @@ export function AssetDetailDrawer({
                 </TabsTrigger>
                 <TabsTrigger value="releases" className="px-4">
                   Releases
+                </TabsTrigger>
+                <TabsTrigger value="supplier-evaluation" className="px-4">
+                  Supplier Eval
+                </TabsTrigger>
+                <TabsTrigger value="document-hub" className="px-4">
+                  Document Hub
+                </TabsTrigger>
+                <TabsTrigger value="rag-insights" className="px-4">
+                  RAG Insights
                 </TabsTrigger>
                 <TabsTrigger value="documents" className="px-4">
                   Documents
@@ -827,9 +905,6 @@ export function AssetDetailDrawer({
                     <div className="space-y-4 rounded-xl border border-slate-200 bg-slate-50/70 p-4">
                       <div>
                         <h4 className="text-sm font-semibold text-slate-900">Placement Context</h4>
-                        <p className="text-xs text-slate-500">
-                          The site comes from the asset&apos;s org/entity link. These fields describe the exact in-site placement.
-                        </p>
                       </div>
                       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                         <InfoField label="Site / Entity" value={organization} />
@@ -847,9 +922,6 @@ export function AssetDetailDrawer({
                     <div className="space-y-4 rounded-xl border border-slate-200 bg-slate-50/70 p-4">
                       <div>
                         <h4 className="text-sm font-semibold text-slate-900">Remarks</h4>
-                        <p className="text-xs text-slate-500">
-                          Optional notes for access guidance, aisle references, or nearby landmarks.
-                        </p>
                       </div>
                       <div className="rounded-lg border border-slate-200 bg-white p-3">
                         <p className="text-sm text-slate-800">
@@ -916,9 +988,6 @@ export function AssetDetailDrawer({
                 ) : !finance ? (
                   <div className="rounded-xl border border-dashed border-slate-300 bg-white px-5 py-8 text-center">
                     <h4 className="text-sm font-semibold text-slate-900">No finance record linked</h4>
-                    <p className="mt-2 text-sm text-slate-500">
-                      Add purchasing, capitalization, depreciation, and valuation data as a separate finance extension for this asset.
-                    </p>
                   </div>
                 ) : (
                   <>
@@ -944,7 +1013,6 @@ export function AssetDetailDrawer({
                     <div className="space-y-4 rounded-xl border border-slate-200 bg-slate-50/70 p-4">
                       <div>
                         <h4 className="text-sm font-semibold text-slate-900">Procurement / Source</h4>
-                        <p className="text-xs text-slate-500">Commercial sourcing context retained separately from the asset master record.</p>
                       </div>
                       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                         <InfoField label="Acquisition Date" value={formatDate(finance.acquisition_dt)} />
@@ -961,7 +1029,6 @@ export function AssetDetailDrawer({
                     <div className="space-y-4 rounded-xl border border-slate-200 bg-slate-50/70 p-4">
                       <div>
                         <h4 className="text-sm font-semibold text-slate-900">Capitalization / Cost</h4>
-                        <p className="text-xs text-slate-500">System-managed values for capitalization timing, acquisition cost, and current book value.</p>
                       </div>
                       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                         <InfoField label="Capitalization Date" value={formatDate(finance.capitalization_date)} />
@@ -975,7 +1042,6 @@ export function AssetDetailDrawer({
                     <div className="space-y-4 rounded-xl border border-slate-200 bg-slate-50/70 p-4">
                       <div>
                         <h4 className="text-sm font-semibold text-slate-900">Valuation / Insurance</h4>
-                        <p className="text-xs text-slate-500">Optional valuation figures used for replacement, insurance, and recovery planning.</p>
                       </div>
                       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                         <InfoField label="Replacement Value" value={formatCurrencyValue(finance.replacement_value, finance.currency_code)} />
@@ -987,7 +1053,6 @@ export function AssetDetailDrawer({
                     <div className="space-y-4 rounded-xl border border-slate-200 bg-slate-50/70 p-4">
                       <div>
                         <h4 className="text-sm font-semibold text-slate-900">Depreciation</h4>
-                        <p className="text-xs text-slate-500">Lookup-driven method and useful-life settings with an optional manual rate override.</p>
                       </div>
                       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                         <InfoField label="Depreciation Method" value={findLookupLabel(depreciationMethods, finance.depreciation_method)} />
@@ -999,7 +1064,6 @@ export function AssetDetailDrawer({
                     <div className="space-y-4 rounded-xl border border-slate-200 bg-slate-50/70 p-4">
                       <div>
                         <h4 className="text-sm font-semibold text-slate-900">Accounting / Project Codes</h4>
-                        <p className="text-xs text-slate-500">Optional accounting and project references kept as finance metadata, not asset identity.</p>
                       </div>
                       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                         <InfoField label="Cost Center" value={formatValue(finance.cost_center)} />
@@ -1083,10 +1147,62 @@ export function AssetDetailDrawer({
                 />
               </TabsContent>
 
+              <TabsContent value="supplier-evaluation" className="space-y-4">
+                <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                    <div>
+                      <p className="text-xs text-slate-500">Asset Name</p>
+                      <p className="text-sm font-medium text-slate-900">{formatValue(asset.asset_name)}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-slate-500">Asset ID</p>
+                      <p className="text-sm font-medium text-slate-900">{formatValue(asset.asset_id)}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-slate-500">Workflow</p>
+                      <p className="text-sm font-medium text-slate-900">Supplier response and selection</p>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs leading-5 text-slate-600">
+                    Create supplier evaluations from an approved URS, seed the requirement baseline, collect structured supplier responses, lock the evaluation, and run AI-assisted comparison from one workspace.
+                  </div>
+                </div>
+
+                <SupplierEvaluationPanel
+                  enabled={open && activeTab === "supplier-evaluation"}
+                  assetId={assetId}
+                  assetName={asset?.asset_name ?? null}
+                  assetCode={asset?.asset_id ?? null}
+                  suppliers={suppliers}
+                  releases={sortedReleases}
+                  sourceSystemOptions={sourceSystemOptions}
+                />
+              </TabsContent>
+
+              <TabsContent value="document-hub" className="space-y-4">
+                <AssetDocumentHubPanel
+                  enabled={open && activeTab === "document-hub"}
+                  asset={asset}
+                  sourceSystemOptions={sourceSystemOptions}
+                />
+              </TabsContent>
+
+              <TabsContent value="rag-insights" className="space-y-4">
+                <AssetRagInsightsPanel
+                  enabled={open && activeTab === "rag-insights"}
+                  assetId={assetId}
+                  assetName={asset.asset_name}
+                  assetCode={asset.asset_id}
+                  assetVersion={asset.asset_version}
+                  sourceSystemOptions={sourceSystemOptions}
+                />
+              </TabsContent>
+
               <TabsContent value="documents" className="space-y-4">
                 <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4">
-                  <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-                    <div className="grid flex-1 grid-cols-1 gap-3 md:grid-cols-3">
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                       <div>
                         <p className="text-xs text-slate-500">Asset Name</p>
                         <p className="text-sm font-medium text-slate-900">{formatValue(asset.asset_name)}</p>
@@ -1101,6 +1217,36 @@ export function AssetDetailDrawer({
                       </div>
                     </div>
 
+                    <div className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs leading-5 text-slate-600">
+                      Linked external documents remain available below. Draft URS authoring now lives in a separate authored-document section with template-prefill, AI-assisted draft generation, controlled review workflow support, and approved-document publishing to Veeva.
+                    </div>
+                  </div>
+                </div>
+
+                <AuthoredDocumentPanel
+                  enabled={open && activeTab === "documents"}
+                  context={assetAuthoredDocumentContext}
+                  description="Create and route application-owned URS documents through deterministic or AI-assisted draft generation using asset master data and active asset specs, then publish approved URS documents to Veeva."
+                />
+
+                <QualificationDocumentPanel
+                  enabled={open && activeTab === "documents"}
+                  context={assetQualificationDocumentContext}
+                  suppliers={suppliers}
+                  releaseOptions={sortedReleases}
+                  sourceSystemOptions={sourceSystemOptions}
+                  description="Register and review supplier-submitted IQ/OQ/PQ validation evidence, keeping qualification type, supplier, and asset or release context explicit for compliance reporting."
+                />
+
+                <div className="space-y-4 rounded-xl border border-slate-200 bg-slate-50/60 p-4">
+                  <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                    <div>
+                      <p className="text-sm font-semibold text-slate-900">Linked Documents</p>
+                      <p className="mt-1 text-xs text-slate-500">
+                        External validated document references remain unchanged for asset-level linkage.
+                      </p>
+                    </div>
+
                     <Button type="button" size="sm" onClick={() => setCreateDocumentOpen(true)} disabled={!assetId}>
                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
@@ -1108,20 +1254,21 @@ export function AssetDetailDrawer({
                       Add Document
                     </Button>
                   </div>
-                </div>
 
-                <div className="rounded-lg border border-slate-200 bg-white px-4 py-3 max-w-xs">
-                  <p className="text-xs text-slate-500">Linked Documents</p>
-                  <p className="mt-1 text-lg font-semibold text-slate-900">{documents.length}</p>
-                </div>
+                  <div className="rounded-lg border border-slate-200 bg-white px-4 py-3 max-w-xs">
+                    <p className="text-xs text-slate-500">Linked Documents</p>
+                    <p className="mt-1 text-lg font-semibold text-slate-900">{documents.length}</p>
+                  </div>
 
-                <AssetDocumentTable
-                  documents={documents}
-                  loading={documentsLoading}
-                  onEdit={(document) => setEditDocumentId(document.document_link_id)}
-                  onDelete={handleDeleteDocumentClick}
-                  sourceSystemOptions={sourceSystemOptions}
-                />
+                  <AssetDocumentTable
+                    documents={documents}
+                    loading={documentsLoading}
+                    onEdit={(document) => setEditDocumentId(document.document_link_id)}
+                    onDelete={handleDeleteDocumentClick}
+                    onReprocess={(document) => void handleReprocessDocument(document)}
+                    sourceSystemOptions={sourceSystemOptions}
+                  />
+                </div>
               </TabsContent>
             </Tabs>
           )}
@@ -1207,6 +1354,8 @@ export function AssetDetailDrawer({
         open={open && Boolean(releaseDocumentsTarget)}
         release={releaseDocumentsTarget}
         assetName={asset?.asset_name}
+        assetCode={asset?.asset_id}
+        suppliers={suppliers}
         sourceSystemOptions={sourceSystemOptions}
         onClose={() => setReleaseDocumentsTarget(null)}
       />
@@ -1318,3 +1467,7 @@ export function AssetDetailDrawer({
     </>
   );
 }
+
+
+
+

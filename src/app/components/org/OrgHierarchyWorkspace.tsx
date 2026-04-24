@@ -1,4 +1,4 @@
-import React, { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import React, { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import axios from "axios";
 import {
   ChevronRight,
@@ -30,7 +30,16 @@ import { Button } from "../ui/Button";
 import { Card, CardBody, CardFooter, CardHeader } from "../ui/Card";
 import { Input, SearchInput } from "../ui/Input";
 import { ConfirmDialog, Modal } from "../ui/Modal";
+import { Skeleton } from "../ui/skeleton";
 import { cn } from "../ui/utils";
+
+interface OrgHeaderControls {
+  refresh: () => void;
+  createRoot: () => void;
+  refreshDisabled: boolean;
+  createRootDisabled: boolean;
+  showCreateRoot: boolean;
+}
 
 interface OrgHierarchyWorkspaceProps {
   defaultUser: string;
@@ -40,6 +49,10 @@ interface OrgHierarchyWorkspaceProps {
     leaders: number;
     topLevel: number;
   }) => void;
+  onHeaderControlsChange?: (controls: OrgHeaderControls) => void;
+  searchInput?: string;
+  onSearchInputChange?: (value: string) => void;
+  showSearchCard?: boolean;
 }
 
 interface FieldErrors {
@@ -275,13 +288,20 @@ const TreeNodeItem = ({
       <div className="pb-1.5">
         <div
           className={cn(
-            "group cursor-pointer rounded-lg border px-3 py-2.5 transition-all",
+            "group relative box-border min-h-[74px] w-full cursor-pointer overflow-hidden rounded-lg border border-slate-200 px-3 py-2.5",
             isSelected
-              ? "border-blue-200 bg-blue-50/80 shadow-[inset_3px_0_0_0_rgb(37_99_235)]"
-              : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50",
+              ? "bg-blue-50/80 ring-1 ring-inset ring-blue-200"
+              : "bg-white hover:bg-slate-50",
           )}
           onClick={() => onSelect(node.id)}
         >
+          <span
+            aria-hidden="true"
+            className={cn(
+              "pointer-events-none absolute inset-y-0 left-0 w-[3px] rounded-l-lg bg-blue-600 opacity-0",
+              isSelected && "opacity-100",
+            )}
+          />
           <div className="flex items-start gap-3">
             {hasChildren ? (
               <button
@@ -301,27 +321,27 @@ const TreeNodeItem = ({
             )}
 
             <div className="min-w-0 flex-1">
-              <div className="flex items-start justify-between gap-3">
+              <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
                 <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                  <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
                     <div className={cn("truncate text-sm font-semibold", isSelected ? "text-slate-950" : "text-slate-900")}>
                       {node.name}
                     </div>
-                    <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide ${typeColors[node.type] || "border-slate-200 bg-slate-100 text-slate-700"}`}>
+                    <span className={`inline-flex shrink-0 items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide ${typeColors[node.type] || "border-slate-200 bg-slate-100 text-slate-700"}`}>
                       {resolveTypeLabel(node.type)}
                     </span>
                   </div>
 
-                  <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
-                    <span className="font-mono uppercase tracking-wide text-slate-500">{node.code}</span>
-                    <span className="text-slate-300">�</span>
-                    <span className="text-slate-500">
+                  <div className="mt-1 grid min-w-0 grid-cols-[auto_auto_minmax(0,1fr)] items-center gap-x-2 text-xs">
+                    <span className="truncate font-mono uppercase tracking-wide text-slate-500">{node.code}</span>
+                    <span className="text-slate-300">&middot;</span>
+                    <span className="truncate text-slate-500">
                       {hasChildren ? `${childCount} reporting unit${childCount === 1 ? "" : "s"}` : "No child units"}
                     </span>
                   </div>
                 </div>
 
-                <span className={`inline-flex shrink-0 items-center rounded-full border px-2.5 py-1 text-xs font-medium ${statusColors[node.status] || "border-slate-200 bg-slate-100 text-slate-700"}`}>
+                <span className={`inline-flex shrink-0 items-center rounded-full border px-2.5 py-1 text-xs font-medium leading-none ${statusColors[node.status] || "border-slate-200 bg-slate-100 text-slate-700"}`}>
                   {resolveStatusLabel(node.status)}
                 </span>
               </div>
@@ -350,7 +370,14 @@ const TreeNodeItem = ({
   );
 };
 
-export function OrgHierarchyWorkspace({ defaultUser, onSummaryChange }: OrgHierarchyWorkspaceProps) {
+export function OrgHierarchyWorkspace({
+  defaultUser,
+  onSummaryChange,
+  onHeaderControlsChange,
+  searchInput: controlledSearchInput,
+  onSearchInputChange,
+  showSearchCard = true,
+}: OrgHierarchyWorkspaceProps) {
   const [isHealthy, setIsHealthy] = useState(true);
   const [healthMessage, setHealthMessage] = useState<string | null>(null);
   const [tree, setTree] = useState<OrgNode[]>([]);
@@ -359,7 +386,7 @@ export function OrgHierarchyWorkspace({ defaultUser, onSummaryChange }: OrgHiera
   const [selectedOrgId, setSelectedOrgId] = useState<string | null>(null);
   const [selectedNode, setSelectedNode] = useState<OrgNode | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
-  const [searchInput, setSearchInput] = useState("");
+  const [localSearchInput, setLocalSearchInput] = useState("");
   const [searchResults, setSearchResults] = useState<OrgNode[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
@@ -372,6 +399,13 @@ export function OrgHierarchyWorkspace({ defaultUser, onSummaryChange }: OrgHiera
   const [orgTypeOptions, setOrgTypeOptions] = useState<LookupOption[]>([]);
   const [statusOptions, setStatusOptions] = useState<LookupOption[]>([]);
   const [countryOptions, setCountryOptions] = useState<LookupOption[]>([]);
+  const selectedOrgIdRef = useRef<string | null>(null);
+
+  const searchInput = controlledSearchInput ?? localSearchInput;
+  const setSearchInput = useCallback((value: string) => {
+    if (controlledSearchInput !== undefined) onSearchInputChange?.(value);
+    else setLocalSearchInput(value);
+  }, [controlledSearchInput, onSearchInputChange]);
 
   const nodeMap = useMemo(() => buildNodeMap(tree), [tree]);
   const parentIndex = useMemo(() => buildParentIndex(tree), [tree]);
@@ -404,6 +438,13 @@ export function OrgHierarchyWorkspace({ defaultUser, onSummaryChange }: OrgHiera
     [allStatusOptions, statusLabelMap],
   );
   const disabled = !isHealthy;
+  const handleSelectOrg = useCallback((orgId: string): void => {
+    setSelectedOrgId((current) => (current === orgId ? current : orgId));
+  }, []);
+
+  useEffect(() => {
+    selectedOrgIdRef.current = selectedOrgId;
+  }, [selectedOrgId]);
 
   const loadTree = useCallback(async (preferredSelectionId?: string | null) => {
     setTreeLoading(true);
@@ -413,7 +454,7 @@ export function OrgHierarchyWorkspace({ defaultUser, onSummaryChange }: OrgHiera
       const normalized = data.map(normalizeNode);
       setTree(normalized);
       const nextMap = buildNodeMap(normalized);
-      const candidate = preferredSelectionId ?? selectedOrgId;
+      const candidate = preferredSelectionId ?? selectedOrgIdRef.current;
       if (candidate && nextMap.has(candidate)) setSelectedOrgId(candidate);
       else setSelectedOrgId(normalized[0]?.id ?? null);
     } catch (error) {
@@ -421,20 +462,20 @@ export function OrgHierarchyWorkspace({ defaultUser, onSummaryChange }: OrgHiera
     } finally {
       setTreeLoading(false);
     }
-  }, [selectedOrgId]);
+  }, []);
 
   const loadDetail = useCallback(async (orgId: string) => {
     setDetailLoading(true);
     try {
       const detail = normalizeNode(await getOrgById(orgId));
-      setSelectedNode(detail);
-      setSelectedOrgId(orgId);
+      if (selectedOrgIdRef.current === orgId) setSelectedNode(detail);
     } catch (error) {
+      if (selectedOrgIdRef.current !== orgId) return;
       const mapped = mapAxiosError(error);
       if (mapped.status === 404) await loadTree(null);
       else setTreeError(mapped.message);
     } finally {
-      setDetailLoading(false);
+      if (selectedOrgIdRef.current === orgId) setDetailLoading(false);
     }
   }, [loadTree]);
 
@@ -499,8 +540,12 @@ export function OrgHierarchyWorkspace({ defaultUser, onSummaryChange }: OrgHiera
     onSummaryChange?.(organizationSummary);
   }, [onSummaryChange, organizationSummary]);
 
-  const selectedNodeCanAddChild = Boolean(selectedNode && selectedNode.status !== "CLOSED");
-  const selectedNodeHasChildren = selectedChildren.length > 0;
+  const detailNode = useMemo(
+    () => (selectedNode && selectedNode.id === selectedOrgId ? selectedNode : null),
+    [selectedNode, selectedOrgId],
+  );
+  const previewNode = useMemo(() => detailNode ?? selectedTreeNode ?? null, [detailNode, selectedTreeNode]);
+  const selectedNodeCanAddChild = Boolean(previewNode && previewNode.status !== "CLOSED");
   const availableParentOptions = useMemo(() => {
     if (formMode !== "editNode") return [];
     return parentOptions.filter((option) => {
@@ -511,9 +556,9 @@ export function OrgHierarchyWorkspace({ defaultUser, onSummaryChange }: OrgHiera
     });
   }, [formData.parent_id, formMode, parentOptions, selectedNodeDescendantIds, selectedOrgId]);
   const siblings = useMemo(() => {
-    if (!selectedNode) return [];
-    return (parentIndex.get(selectedNode.parent_id) ?? []).filter((node) => node.id !== selectedNode.id);
-  }, [parentIndex, selectedNode]);
+    if (!previewNode) return [];
+    return (parentIndex.get(previewNode.parent_id) ?? []).filter((node) => node.id !== previewNode.id);
+  }, [parentIndex, previewNode]);
   const selectedLineage = useMemo(() => {
     if (!selectedTreeNode) return [];
 
@@ -527,7 +572,7 @@ export function OrgHierarchyWorkspace({ defaultUser, onSummaryChange }: OrgHiera
     return lineage;
   }, [nodeMap, selectedTreeNode]);
 
-  const openCreateRoot = (): void => {
+  const openCreateRoot = useCallback((): void => {
     setFormMode("createRoot");
     setFieldErrors({});
     setFormMessage(null);
@@ -537,7 +582,17 @@ export function OrgHierarchyWorkspace({ defaultUser, onSummaryChange }: OrgHiera
       status: allStatusOptions[0]?.code ?? "ACTIVE",
     });
     setShowForm(true);
-  };
+  }, [allOrgTypeCodes, allStatusOptions]);
+
+  useEffect(() => {
+    onHeaderControlsChange?.({
+      refresh: () => void loadTree(selectedOrgId),
+      createRoot: openCreateRoot,
+      refreshDisabled: treeLoading,
+      createRootDisabled: disabled,
+      showCreateRoot: !rootExists,
+    });
+  }, [disabled, loadTree, onHeaderControlsChange, openCreateRoot, rootExists, selectedOrgId, treeLoading]);
 
   const openAddChild = (): void => {
     if (!selectedOrgId || !selectedNodeCanAddChild) return;
@@ -547,7 +602,7 @@ export function OrgHierarchyWorkspace({ defaultUser, onSummaryChange }: OrgHiera
     setFormData({
       ...EMPTY_FORM,
       parent_id: selectedOrgId,
-      type: getSuggestedChildType(selectedNode?.type, allOrgTypeCodes),
+      type: getSuggestedChildType(previewNode?.type, allOrgTypeCodes),
       status: allStatusOptions[0]?.code ?? "ACTIVE",
     });
     setShowForm(true);
@@ -656,20 +711,20 @@ export function OrgHierarchyWorkspace({ defaultUser, onSummaryChange }: OrgHiera
     }
   };
 
-  const selectedParentName = selectedNode?.parent_id
-    ? nodeMap.get(selectedNode.parent_id)?.name ?? selectedNode.parent_id
+  const selectedParentName = previewNode?.parent_id
+    ? nodeMap.get(previewNode.parent_id)?.name ?? previewNode.parent_id
     : "Top-level organization";
   const selectedLocationSummary = [
-    selectedNode?.address,
-    selectedNode?.city,
-    selectedNode?.state,
-    selectedNode?.country ? getLookupLabel(selectedNode.country, countryLabelMap, selectedNode.country) : null,
+    previewNode?.address,
+    previewNode?.city,
+    previewNode?.state,
+    previewNode?.country ? getLookupLabel(previewNode.country, countryLabelMap, previewNode.country) : null,
   ]
     .filter((value): value is string => Boolean(value && value.trim()))
     .join(", ");
 
   return (
-    <div className="space-y-5">
+    <div className="flex min-h-0 flex-1 flex-col gap-3">
       {!isHealthy && (
         <div className="rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800">
           Organization services are currently unavailable. {healthMessage ?? "Actions stay disabled until the health check passes."}
@@ -681,8 +736,9 @@ export function OrgHierarchyWorkspace({ defaultUser, onSummaryChange }: OrgHiera
         </div>
       )}
 
-      <Card padding="none" className="overflow-visible border-slate-200 shadow-sm">
-        <CardBody className="px-6 py-5">
+      {showSearchCard && (
+        <Card padding="none" className="overflow-visible border-slate-200 shadow-sm">
+          <CardBody className="px-5 py-3">
           <div className="flex flex-col gap-3 xl:flex-row xl:items-center">
             <div className="relative flex-1">
               <SearchInput
@@ -705,7 +761,7 @@ export function OrgHierarchyWorkspace({ defaultUser, onSummaryChange }: OrgHiera
                       className="w-full border-b border-slate-100 px-4 py-3 text-left transition-colors hover:bg-slate-50 last:border-b-0"
                       onClick={() => {
                         setSearchInput("");
-                        setSelectedOrgId(result.id);
+                        handleSelectOrg(result.id);
                       }}
                     >
                       <div className="text-sm font-semibold text-slate-900">{result.name}</div>
@@ -718,33 +774,45 @@ export function OrgHierarchyWorkspace({ defaultUser, onSummaryChange }: OrgHiera
                 </div>
               )}
             </div>
-
-            <div className="flex flex-wrap gap-2">
-              <Button
-                variant="secondary"
-                size="sm"
-                type="button"
-                disabled={treeLoading}
-                onClick={() => void loadTree(selectedOrgId)}
-              >
-                <RefreshCw className={`h-4 w-4 ${treeLoading ? "animate-spin" : ""}`} />
-                {treeLoading ? "Refreshing..." : "Refresh Data"}
-              </Button>
-              {!rootExists && (
-                <Button size="sm" type="button" disabled={disabled} onClick={openCreateRoot}>
-                  <Plus className="h-4 w-4" />
-                  Add Top-Level Organization
-                </Button>
-              )}
-            </div>
           </div>
-        </CardBody>
-      </Card>
+          </CardBody>
+        </Card>
+      )}
 
-      <div className="grid gap-4 xl:grid-cols-[360px_minmax(0,1fr)]" style={{ minHeight: "560px" }}>
-        <Card padding="none" className="flex h-full min-h-[560px] flex-col overflow-hidden border-slate-200 bg-white shadow-sm">
+      {!showSearchCard && searchInput.trim() && (
+        <Card padding="none" className="overflow-hidden border-slate-200 shadow-sm">
+          <CardBody className="px-4 py-3">
+            <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
+              <span className="font-medium text-slate-700">
+                {searchLoading ? "Searching organizations..." : `${searchResults.length} organization match${searchResults.length === 1 ? "" : "es"}`}
+              </span>
+              <button type="button" className="text-xs font-semibold text-blue-600 hover:text-blue-700" onClick={() => setSearchInput("")}>Clear search</button>
+            </div>
+            {!searchLoading && searchResults.length > 0 && (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {searchResults.slice(0, 8).map((result) => (
+                  <button
+                    key={result.id}
+                    type="button"
+                    className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition-colors hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
+                    onClick={() => {
+                      setSearchInput("");
+                      handleSelectOrg(result.id);
+                    }}
+                  >
+                    {result.name}
+                  </button>
+                ))}
+              </div>
+            )}
+          </CardBody>
+        </Card>
+      )}
+
+      <div className="grid min-h-[620px] flex-1 items-stretch gap-4 xl:grid-cols-[minmax(320px,340px)_minmax(0,1fr)] xl:overflow-hidden">
+        <Card padding="none" className="flex min-h-[620px] flex-col overflow-hidden border-slate-200 bg-white shadow-sm xl:h-full xl:min-h-0">
           <CardHeader
-            className="border-b border-slate-200 bg-slate-50/70 pb-4"
+            className="shrink-0 border-b border-slate-200 bg-slate-50/70 pb-3"
             title="Organization Map"
             description="Browse the enterprise structure and choose an organization to review."
             action={(
@@ -754,13 +822,13 @@ export function OrgHierarchyWorkspace({ defaultUser, onSummaryChange }: OrgHiera
               </Button>
             )}
           />
-          <div className="border-b border-slate-200 bg-white px-4 py-2 text-xs text-slate-500">
+          <div className="shrink-0 border-b border-slate-200 bg-white px-4 py-2 text-xs text-slate-500">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <span>{nodeMap.size} organization{nodeMap.size === 1 ? "" : "s"}</span>
               <span>{tree.length} top-level branch{tree.length === 1 ? "" : "es"}</span>
             </div>
           </div>
-          <div className="flex-1 overflow-y-auto bg-slate-50/40 px-3 py-3">
+          <div className="min-h-[460px] flex-1 overflow-y-auto bg-slate-50/40 px-3 py-2.5 [scrollbar-gutter:stable] xl:min-h-0">
             {treeLoading && (
               <div className="rounded-lg border border-dashed border-slate-200 bg-white px-4 py-5 text-sm text-slate-500">
                 Loading organization map...
@@ -780,7 +848,7 @@ export function OrgHierarchyWorkspace({ defaultUser, onSummaryChange }: OrgHiera
                     depth={0}
                     isLast={index === tree.length - 1}
                     selectedOrgId={selectedOrgId}
-                    onSelect={setSelectedOrgId}
+                    onSelect={handleSelectOrg}
                     resolveTypeLabel={resolveTypeLabel}
                     resolveStatusLabel={resolveStatusDisplay}
                   />
@@ -790,13 +858,14 @@ export function OrgHierarchyWorkspace({ defaultUser, onSummaryChange }: OrgHiera
           </div>
         </Card>
 
-        <div className="flex min-w-0 flex-col gap-4">
-          <Card padding="none" className="border-slate-200 shadow-sm">
+        <div className="flex min-w-0 flex-col gap-4 xl:h-full xl:min-h-0 xl:overflow-y-auto xl:pr-1 xl:[scrollbar-gutter:stable]">
+          <Card padding="none" className="flex min-h-[620px] flex-col border-slate-200 shadow-sm xl:h-[620px] xl:min-h-0">
             <CardHeader
-              title={selectedNode?.name ?? "Select an Organization"}
+              className="min-h-[104px] shrink-0 overflow-hidden border-b border-slate-200 bg-slate-50/60 [&_[data-slot=card-description]]:truncate [&_[data-slot=card-title]]:truncate"
+              title={previewNode?.name ?? "Select an Organization"}
               description={
-                selectedNode
-                  ? `${resolveTypeLabel(selectedNode.type)} • ${selectedNode.code}`
+                previewNode
+                  ? `${resolveTypeLabel(previewNode.type)} - ${previewNode.code}`
                   : "Choose an organization from the map to review its profile and governance coverage."
               }
               action={(
@@ -816,116 +885,150 @@ export function OrgHierarchyWorkspace({ defaultUser, onSummaryChange }: OrgHiera
                 </div>
               )}
             />
-            <CardBody className="space-y-5">
-              {detailLoading && <div className="text-sm text-slate-500">Loading organization profile...</div>}
-              {!detailLoading && !selectedNode && (
-                <div className="rounded-2xl border border-dashed border-slate-200 px-4 py-5 text-sm text-slate-500">
-                  Select an organization from the map to see business details, reporting relationships, and governance coverage.
-                </div>
-              )}
-              {!detailLoading && selectedNode && (
-                <>
-                  {selectedLineage.length > 0 && (
-                    <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
-                      <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Reporting Map</div>
-                      <div className="mt-3 flex flex-wrap items-center gap-2 text-sm text-slate-600">
-                        {selectedLineage.map((organization, index) => (
-                          <React.Fragment key={organization.id}>
-                            {index > 0 && <ChevronRight className="h-4 w-4 text-slate-300" />}
-                            <button
-                              type="button"
-                              className={`rounded-full border px-3 py-1 transition-colors ${organization.id === selectedOrgId ? "border-blue-200 bg-blue-50 text-blue-700" : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"}`}
-                              onClick={() => setSelectedOrgId(organization.id)}
-                            >
-                              {organization.name}
-                            </button>
-                          </React.Fragment>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="grid gap-3 md:grid-cols-3">
-                    <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                      <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Reporting Units</div>
-                      <div className="mt-2 text-2xl font-semibold text-slate-900">{selectedChildren.length}</div>
-                      <p className="mt-2 text-sm text-slate-500">
-                        {selectedChildren.length === 0 ? "No downstream organizations yet." : "Organizations that report directly here."}
-                      </p>
-                    </div>
-                    <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                      <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Peer Organizations</div>
-                      <div className="mt-2 text-2xl font-semibold text-slate-900">{siblings.length}</div>
-                      <p className="mt-2 text-sm text-slate-500">
-                        {siblings.length === 0 ? "No peer organizations at this level." : "Other organizations with the same parent."}
-                      </p>
-                    </div>
-                    <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                      <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Structure Level</div>
-                      <div className="mt-2 text-2xl font-semibold text-slate-900">{selectedLineage.length}</div>
-                      <p className="mt-2 text-sm text-slate-500">Depth of this organization within the reporting line.</p>
-                    </div>
+            <CardBody className="flex min-h-[460px] flex-1 overflow-hidden px-5 py-4">
+              <div className="min-h-[420px] flex-1 space-y-4 overflow-y-auto pr-1 [scrollbar-gutter:stable]">
+                {!previewNode && (
+                  <div className="flex h-full min-h-[420px] items-center justify-center rounded-2xl border border-dashed border-slate-200 px-4 py-5 text-center text-sm text-slate-500">
+                    No organization selected.
                   </div>
-
-                  <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
-                    <div className="flex items-start gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white text-slate-600 shadow-sm">
-                        <MapPin className="h-5 w-5" />
-                      </div>
-                      <div>
-                        <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Location Summary</div>
-                        <div className="mt-1 text-sm text-slate-700">
-                          {selectedLocationSummary || "Location details are still being captured for this organization."}
+                )}
+                {previewNode && !detailNode && (
+                  <div className="min-h-[420px] space-y-4">
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                      <div className="space-y-3">
+                        <Skeleton className="h-3 w-28" />
+                        <div className="flex flex-wrap gap-2">
+                          <Skeleton className="h-8 w-28 rounded-full" />
+                          <Skeleton className="h-8 w-24 rounded-full" />
+                          <Skeleton className="h-8 w-32 rounded-full" />
                         </div>
                       </div>
                     </div>
-                  </div>
 
-                  <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                    {[
-                      { label: "Organization Name", value: selectedNode.name },
-                      { label: "Organization Type", value: resolveTypeLabel(selectedNode.type), kind: "type" },
-                      { label: "Organization Code", value: selectedNode.code },
-                      { label: "Reports To", value: selectedParentName },
-                      { label: "Operating Status", value: resolveStatusDisplay(selectedNode.status), kind: "status" },
-                      { label: "Direct Reporting Units", value: String(selectedChildren.length) },
-                      { label: "Street Address", value: selectedNode.address || "-" },
-                      { label: "City", value: selectedNode.city || "-" },
-                      { label: "State / Province", value: selectedNode.state || "-" },
-                      { label: "Country", value: selectedNode.country ? getLookupLabel(selectedNode.country, countryLabelMap, selectedNode.country) : "-" },
-                      { label: "Latitude", value: formatCoord(selectedNode.lat) },
-                      { label: "Longitude", value: formatCoord(selectedNode.long) },
-                    ].map((item) => (
-                      <div key={item.label}>
-                        <div className="mb-1 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{item.label}</div>
-                        {item.kind === "status" ? (
-                          <span className={`inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium ${statusColors[selectedNode.status] || "border-slate-200 bg-slate-100 text-slate-700"}`}>
-                            {item.value}
-                          </span>
-                        ) : item.kind === "type" ? (
-                          <span className={`inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium ${typeColors[selectedNode.type] || "border-slate-200 bg-slate-100 text-slate-700"}`}>
-                            {item.value}
-                          </span>
-                        ) : (
-                          <div className="text-sm font-medium text-slate-800">{item.value}</div>
-                        )}
+                    <div className="grid gap-3 md:grid-cols-3">
+                      {Array.from({ length: 3 }).map((_, index) => (
+                        <div key={`metric-skeleton-${index}`} className="rounded-xl border border-slate-200 bg-white p-3">
+                          <Skeleton className="h-3 w-24" />
+                          <Skeleton className="mt-3 h-8 w-12" />
+                          <Skeleton className="mt-3 h-4 w-full" />
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                      <div className="flex items-start gap-3">
+                        <Skeleton className="h-10 w-10 rounded-2xl" />
+                        <div className="flex-1 space-y-2">
+                          <Skeleton className="h-3 w-28" />
+                          <Skeleton className="h-4 w-full" />
+                          <Skeleton className="h-4 w-3/4" />
+                        </div>
                       </div>
-                    ))}
+                    </div>
+
+                    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                      {Array.from({ length: 6 }).map((_, index) => (
+                        <div key={`field-skeleton-${index}`} className="rounded-xl border border-slate-200 bg-white px-3 py-3">
+                          <Skeleton className="h-3 w-20" />
+                          <Skeleton className="mt-3 h-4 w-full" />
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                </>
-              )}
+                )}
+                {detailNode && (
+                  <div className="min-h-[420px] space-y-4">
+                    {selectedLineage.length > 0 && (
+                      <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                        <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Reporting Map</div>
+                        <div className="mt-3 flex flex-wrap items-center gap-2 text-sm text-slate-600">
+                          {selectedLineage.map((organization, index) => (
+                            <React.Fragment key={organization.id}>
+                              {index > 0 && <ChevronRight className="h-4 w-4 text-slate-300" />}
+                              <button
+                                type="button"
+                                className={`rounded-full border px-3 py-1 transition-colors ${organization.id === selectedOrgId ? "border-blue-200 bg-blue-50 text-blue-700" : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"}`}
+                                onClick={() => handleSelectOrg(organization.id)}
+                              >
+                                {organization.name}
+                              </button>
+                            </React.Fragment>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="grid gap-3 md:grid-cols-3">
+                      <div className="rounded-xl border border-slate-200 bg-white p-3">
+                        <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Reporting Units</div>
+                        <div className="mt-2 text-2xl font-semibold text-slate-900">{selectedChildren.length}</div>
+                      </div>
+                      <div className="rounded-xl border border-slate-200 bg-white p-3">
+                        <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Peer Organizations</div>
+                        <div className="mt-2 text-2xl font-semibold text-slate-900">{siblings.length}</div>
+                      </div>
+                      <div className="rounded-xl border border-slate-200 bg-white p-3">
+                        <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Structure Level</div>
+                        <div className="mt-2 text-2xl font-semibold text-slate-900">{selectedLineage.length}</div>
+                      </div>
+                    </div>
+
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                      <div className="flex items-start gap-3">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white text-slate-600 shadow-sm">
+                          <MapPin className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Location Summary</div>
+                          <div className="mt-1 text-sm text-slate-700">
+                            {selectedLocationSummary || "Location details are still being captured for this organization."}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                      {[
+                        { label: "Organization Name", value: detailNode.name },
+                        { label: "Organization Type", value: resolveTypeLabel(detailNode.type), kind: "type" },
+                        { label: "Organization Code", value: detailNode.code },
+                        { label: "Reports To", value: selectedParentName },
+                        { label: "Operating Status", value: resolveStatusDisplay(detailNode.status), kind: "status" },
+                        { label: "Direct Reporting Units", value: String(selectedChildren.length) },
+                        { label: "Street Address", value: detailNode.address || "-" },
+                        { label: "City", value: detailNode.city || "-" },
+                        { label: "State / Province", value: detailNode.state || "-" },
+                        { label: "Country", value: detailNode.country ? getLookupLabel(detailNode.country, countryLabelMap, detailNode.country) : "-" },
+                        { label: "Latitude", value: formatCoord(detailNode.lat) },
+                        { label: "Longitude", value: formatCoord(detailNode.long) },
+                      ].map((item) => (
+                        <div key={item.label}>
+                          <div className="mb-1 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{item.label}</div>
+                          {item.kind === "status" ? (
+                            <span className={`inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium ${statusColors[detailNode.status] || "border-slate-200 bg-slate-100 text-slate-700"}`}>
+                              {item.value}
+                            </span>
+                          ) : item.kind === "type" ? (
+                            <span className={`inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium ${typeColors[detailNode.type] || "border-slate-200 bg-slate-100 text-slate-700"}`}>
+                              {item.value}
+                            </span>
+                          ) : (
+                            <div className="text-sm font-medium text-slate-800">{item.value}</div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
             </CardBody>
-            <CardFooter className="justify-between gap-3 border-t border-slate-100 pt-4">
-              <span className="text-xs text-slate-500">Only one top-level organization can remain active at a time.</span>
-              <span className="text-xs text-slate-500">Each organization reports to one parent organization.</span>
-            </CardFooter>
           </Card>
 
-          <OrgRoleAssignmentsPanel orgId={selectedOrgId} orgName={selectedNode?.name ?? null} disabled={disabled} defaultUser={defaultUser} />
+          <OrgRoleAssignmentsPanel orgId={selectedOrgId} orgName={previewNode?.name ?? null} disabled={disabled} defaultUser={defaultUser} />
 
-          {selectedNode && (
+          {previewNode && (
             <div className="grid gap-4 lg:grid-cols-2">
-              <Card padding="none" className="border-slate-200 shadow-sm">
+              <Card padding="none" className="min-h-[260px] border-slate-200 shadow-sm">
                 <CardHeader
                   title="Peer Organizations"
                   description={
@@ -940,7 +1043,7 @@ export function OrgHierarchyWorkspace({ defaultUser, onSummaryChange }: OrgHiera
                     <button
                       key={sibling.id}
                       type="button"
-                      onClick={() => setSelectedOrgId(sibling.id)}
+                      onClick={() => handleSelectOrg(sibling.id)}
                       className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-left transition-colors hover:border-slate-300 hover:bg-slate-50"
                     >
                       <div className="text-sm font-semibold text-slate-900">{sibling.name}</div>
@@ -953,7 +1056,7 @@ export function OrgHierarchyWorkspace({ defaultUser, onSummaryChange }: OrgHiera
                 </CardBody>
               </Card>
 
-              <Card padding="none" className="border-slate-200 shadow-sm">
+              <Card padding="none" className="min-h-[260px] border-slate-200 shadow-sm">
                 <CardHeader
                   title="Reporting Organizations"
                   description={`${selectedChildren.length} organization${selectedChildren.length === 1 ? "" : "s"} report directly here.`}
@@ -964,7 +1067,7 @@ export function OrgHierarchyWorkspace({ defaultUser, onSummaryChange }: OrgHiera
                     <button
                       key={child.id}
                       type="button"
-                      onClick={() => setSelectedOrgId(child.id)}
+                      onClick={() => handleSelectOrg(child.id)}
                       className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-left transition-colors hover:border-blue-300 hover:bg-blue-50"
                     >
                       <div className="flex items-start justify-between gap-3">
@@ -1075,7 +1178,7 @@ export function OrgHierarchyWorkspace({ defaultUser, onSummaryChange }: OrgHiera
                   {(!rootExists || selectedNode?.parent_id === null) && <option value="">Top-level organization</option>}
                   {availableParentOptions.map((option) => (
                     <option key={option.id} value={option.id}>
-                      {`${"— ".repeat(option.level)}${option.name} (${resolveTypeLabel(option.type)})`}
+                      {`${"-- ".repeat(option.level)}${option.name} (${resolveTypeLabel(option.type)})`}
                     </option>
                   ))}
                 </select>

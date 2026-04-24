@@ -54,9 +54,8 @@ const SectionCard = ({
   children: React.ReactNode;
 }) => (
   <section className="space-y-4 rounded-xl border border-slate-200 bg-slate-50/70 p-4">
-    <div className="space-y-1">
+    <div>
       <h4 className="text-sm font-semibold text-slate-900">{title}</h4>
-      <p className="text-xs text-slate-500">{description}</p>
     </div>
     {children}
   </section>

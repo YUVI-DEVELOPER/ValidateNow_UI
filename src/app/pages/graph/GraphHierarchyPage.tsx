@@ -24,7 +24,7 @@ import { getAssetById } from '../../../services/asset.service';
 import { getSupplierById } from '../../../services/supplier.service';
 import { Drawer } from '../../components/ui/Modal';
 import { toast } from 'sonner';
-import { CommonPageHeader } from '../../components/layout/CommonPageHeader';
+import { CommonPageHeader, PAGE_CONTENT_CLASS, PAGE_LAYOUT_SHELL_CLASS } from '../../components/layout/CommonPageHeader';
 import { buildPageHeaderStats, getPageHeaderConfig } from '../../components/layout/pageHeaderConfig';
 
 // Custom node types
@@ -220,7 +220,7 @@ export function GraphHierarchyPage() {
       // Create edges
       const graphEdges: Edge[] = [];
 
-      // ORG → ORG edges (parent-child hierarchy) - using parent_id
+      // ORG -> ORG edges (parent-child hierarchy) - using parent_id
       flatOrgs.forEach((org) => {
         if (org.parent_id && orgMap.has(org.parent_id)) {
           graphEdges.push({
@@ -234,7 +234,7 @@ export function GraphHierarchyPage() {
         }
       });
 
-      // ORG → ASSET edges
+      // ORG -> ASSET edges
       assets.forEach((asset) => {
         if (asset.org_node_id) {
           graphEdges.push({
@@ -248,7 +248,7 @@ export function GraphHierarchyPage() {
         }
       });
 
-      // ASSET → SUPPLIER edges
+      // ASSET -> SUPPLIER edges
       assets.forEach((asset) => {
         if (asset.supplier_id) {
           graphEdges.push({
@@ -449,7 +449,7 @@ export function GraphHierarchyPage() {
 
   // Loading state
   return (
-    <div className="space-y-4 p-6" onMouseMove={handleMouseMove}>
+    <div className={PAGE_LAYOUT_SHELL_CLASS} onMouseMove={handleMouseMove}>
       <CommonPageHeader
         breadcrumbs={header.breadcrumbs}
         sectionLabel={header.sectionLabel}
@@ -473,124 +473,126 @@ export function GraphHierarchyPage() {
         ]}
       />
 
-      <GraphControls
-        filters={filters}
-        onFilterChange={handleFilterChange}
-        nodeCounts={nodeCounts}
-      />
+      <div className={PAGE_CONTENT_CLASS}>
+        <GraphControls
+          filters={filters}
+          onFilterChange={handleFilterChange}
+          nodeCounts={nodeCounts}
+        />
 
-      {loading && nodes.length === 0 ? (
-        <div className="flex min-h-[620px] items-center justify-center rounded-2xl border border-slate-200 bg-white shadow-sm">
-          <div className="text-center">
-            <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-4 border-blue-500/20 border-t-blue-500" />
-            <p className="text-sm text-slate-500">Loading infrastructure graph...</p>
-          </div>
-        </div>
-      ) : error && nodes.length === 0 ? (
-        <div className="flex min-h-[620px] items-center justify-center rounded-2xl border border-slate-200 bg-white shadow-sm">
-          <div className="max-w-md text-center">
-            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-red-50">
-              <svg className="h-8 w-8 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-              </svg>
+        {loading && nodes.length === 0 ? (
+          <div className="flex min-h-[620px] items-center justify-center rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <div className="text-center">
+              <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-4 border-blue-500/20 border-t-blue-500" />
+              <p className="text-sm text-slate-500">Loading infrastructure graph...</p>
             </div>
-            <p className="mb-2 font-medium text-slate-900">{error}</p>
-            <button
-              onClick={handleRefresh}
-              className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700"
-            >
-              Try Again
-            </button>
           </div>
-        </div>
-      ) : (
-        <div className="min-h-[680px] overflow-hidden rounded-2xl border border-slate-200 bg-[#0e1117] shadow-sm">
-          <ReactFlow
-            nodes={filteredNodes}
-            edges={filteredEdges}
-            onNodesChange={onNodesChange}
-            onEdgesChange={onEdgesChange}
-            nodeTypes={nodeTypes}
-            onNodeClick={handleNodeClick}
-            onNodeMouseEnter={handleNodeMouseEnter}
-            onNodeMouseLeave={handleNodeMouseLeave}
-            onInit={setReactFlowInstance}
-            fitView
-            fitViewOptions={{ padding: 0.2 }}
-            minZoom={0.1}
-            maxZoom={2}
-            defaultEdgeOptions={{
-              type: 'smoothstep',
-              style: { strokeWidth: 2 },
-            }}
-            className="bg-[#0e1117]"
-          >
-            <Background
-              variant={BackgroundVariant.Dots}
-              gap={24}
-              size={1}
-              color="#334155"
-              style={{ background: '#0e1117' }}
-            />
-
-            <div
-              className="absolute inset-0 pointer-events-none opacity-20"
-              style={{
-                backgroundImage: `
-                  linear-gradient(rgba(59, 130, 246, 0.03) 1px, transparent 1px),
-                  linear-gradient(90deg, rgba(59, 130, 246, 0.03) 1px, transparent 1px)
-                `,
-                backgroundSize: '40px 40px',
+        ) : error && nodes.length === 0 ? (
+          <div className="flex min-h-[620px] items-center justify-center rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <div className="max-w-md text-center">
+              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-red-50">
+                <svg className="h-8 w-8 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+              <p className="mb-2 font-medium text-slate-900">{error}</p>
+              <button
+                onClick={handleRefresh}
+                className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700"
+              >
+                Try Again
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="min-h-[680px] overflow-hidden rounded-2xl border border-slate-200 bg-[#0e1117] shadow-sm">
+            <ReactFlow
+              nodes={filteredNodes}
+              edges={filteredEdges}
+              onNodesChange={onNodesChange}
+              onEdgesChange={onEdgesChange}
+              nodeTypes={nodeTypes}
+              onNodeClick={handleNodeClick}
+              onNodeMouseEnter={handleNodeMouseEnter}
+              onNodeMouseLeave={handleNodeMouseLeave}
+              onInit={setReactFlowInstance}
+              fitView
+              fitViewOptions={{ padding: 0.2 }}
+              minZoom={0.1}
+              maxZoom={2}
+              defaultEdgeOptions={{
+                type: 'smoothstep',
+                style: { strokeWidth: 2 },
               }}
-            />
+              className="bg-[#0e1117]"
+            >
+              <Background
+                variant={BackgroundVariant.Dots}
+                gap={24}
+                size={1}
+                color="#334155"
+                style={{ background: '#0e1117' }}
+              />
 
-            <div
-              className="absolute inset-0 pointer-events-none"
-              style={{
-                background: 'radial-gradient(circle at 50% 50%, rgba(59, 130, 246, 0.08) 0%, transparent 50%)',
-              }}
-            />
+              <div
+                className="absolute inset-0 pointer-events-none opacity-20"
+                style={{
+                  backgroundImage: `
+                    linear-gradient(rgba(59, 130, 246, 0.03) 1px, transparent 1px),
+                    linear-gradient(90deg, rgba(59, 130, 246, 0.03) 1px, transparent 1px)
+                  `,
+                  backgroundSize: '40px 40px',
+                }}
+              />
 
-            <Controls
-              className="!rounded-lg !border-slate-700/50 !bg-slate-800/90 !shadow-xl"
-              style={{
-                backgroundColor: 'rgba(30, 41, 59, 0.9)',
-                border: '1px solid rgba(51, 65, 85, 0.5)',
-                borderRadius: '8px',
-              }}
-            />
+              <div
+                className="absolute inset-0 pointer-events-none"
+                style={{
+                  background: 'radial-gradient(circle at 50% 50%, rgba(59, 130, 246, 0.08) 0%, transparent 50%)',
+                }}
+              />
 
-            <MiniMap
-              nodeColor={(node) => {
-                switch (node.data?.type) {
-                  case 'ORG':
-                    return '#3b82f6';
-                  case 'ASSET':
-                    return '#22c55e';
-                  case 'SUPPLIER':
-                    return '#a855f7';
-                  default:
-                    return '#64748b';
-                }
-              }}
-              maskColor="rgba(15, 23, 42, 0.8)"
-              className="!rounded-lg !border-slate-700/50 !bg-slate-900/90"
-              style={{
-                backgroundColor: 'rgba(15, 23, 42, 0.9)',
-                border: '1px solid rgba(51, 65, 85, 0.5)',
-                borderRadius: '8px',
-              }}
-            />
-          </ReactFlow>
+              <Controls
+                className="!rounded-lg !border-slate-700/50 !bg-slate-800/90 !shadow-xl"
+                style={{
+                  backgroundColor: 'rgba(30, 41, 59, 0.9)',
+                  border: '1px solid rgba(51, 65, 85, 0.5)',
+                  borderRadius: '8px',
+                }}
+              />
 
-          {hoveredNode && (
-            <Tooltip
-              data={hoveredNode.data}
-              position={{ x: mousePosition.x, y: mousePosition.y }}
-            />
-          )}
-        </div>
-      )}
+              <MiniMap
+                nodeColor={(node) => {
+                  switch (node.data?.type) {
+                    case 'ORG':
+                      return '#3b82f6';
+                    case 'ASSET':
+                      return '#22c55e';
+                    case 'SUPPLIER':
+                      return '#a855f7';
+                    default:
+                      return '#64748b';
+                  }
+                }}
+                maskColor="rgba(15, 23, 42, 0.8)"
+                className="!rounded-lg !border-slate-700/50 !bg-slate-900/90"
+                style={{
+                  backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                  border: '1px solid rgba(51, 65, 85, 0.5)',
+                  borderRadius: '8px',
+                }}
+              />
+            </ReactFlow>
+
+            {hoveredNode && (
+              <Tooltip
+                data={hoveredNode.data}
+                position={{ x: mousePosition.x, y: mousePosition.y }}
+              />
+            )}
+          </div>
+        )}
+      </div>
 
       {/* Detail Drawer */}
       <Drawer
@@ -667,3 +669,4 @@ export function GraphHierarchyPage() {
     </div>
   );
 }
+

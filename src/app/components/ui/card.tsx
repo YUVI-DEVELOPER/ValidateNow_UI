@@ -47,14 +47,6 @@ function CardHeader({ className, title, description, action, ...props }: CardHea
                 {title}
               </h4>
             )}
-            {description && (
-              <p
-                data-slot="card-description"
-                className="text-sm text-muted-foreground mt-1 break-words"
-              >
-                {description}
-              </p>
-            )}
           </div>
           {action && <div data-slot="card-action" className="shrink-0">{action}</div>}
         </div>
@@ -159,7 +151,6 @@ function KPICard({ className, title, value, change, changeDirection = "up", desc
           {change}
         </div>
       )}
-      {description && <div className="text-xs text-muted-foreground mt-1">{description}</div>}
     </div>
   );
 }

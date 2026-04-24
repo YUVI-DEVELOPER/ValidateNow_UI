@@ -33,7 +33,7 @@ import { LookupOption, getLookupOptionsByMasterCode } from "../services/lookupVa
 import { CsvImportModal } from "../components/importExport/CsvImportModal";
 import { downloadCsv } from "../components/importExport/csv";
 import { SupplierDetailDrawer } from "../components/suppliers/SupplierDetailDrawer";
-import { CommonPageHeader } from "../components/layout/CommonPageHeader";
+import { CommonPageHeader, PAGE_CONTENT_CLASS, PAGE_LAYOUT_SHELL_CLASS } from "../components/layout/CommonPageHeader";
 import { buildPageHeaderStats, getPageHeaderConfig } from "../components/layout/pageHeaderConfig";
 
 interface FieldErrors {
@@ -507,7 +507,7 @@ const openEdit = async (supplierId: string) => {
   });
 
   return (
-    <div className="space-y-6">
+    <div className={PAGE_LAYOUT_SHELL_CLASS}>
       <CommonPageHeader
         breadcrumbs={header.breadcrumbs}
         sectionLabel={header.sectionLabel}
@@ -541,124 +541,126 @@ const openEdit = async (supplierId: string) => {
         ]}
       />
 
-      <Card>
-        <CardBody className="space-y-4 pt-6">
-          <div className="rounded-xl border border-slate-200 overflow-hidden">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Supplier Name</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>City</TableHead>
-                  <TableHead>State</TableHead>
-                  <TableHead>Contact Name</TableHead>
-                  <TableHead>Contact Email</TableHead>
-                  <TableHead>Contact Phone</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {paginatedSuppliers.map((supplier) => (
-                  <TableRow key={supplier.supplier_id}>
-                    <TableCell className="font-medium text-slate-900">{supplier.supplier_name}</TableCell>
-                    <TableCell>{supplier.supplier_type ?? "-"}</TableCell>
-                    <TableCell>{supplier.supplier_city ?? "-"}</TableCell>
-                    <TableCell>{supplier.supplier_state ?? "-"}</TableCell>
-                    <TableCell>{supplier.contact_name ?? "-"}</TableCell>
-                    <TableCell className="font-mono text-xs">{supplier.contact_email ?? "-"}</TableCell>
-                    <TableCell>{supplier.contact_phone ?? "-"}</TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => openView(supplier.supplier_id)}
-                          title="View"
-                        >
-                          <svg
-                            className="w-4 h-4"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                            strokeWidth={2}
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                            />
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-                            />
-                          </svg>
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => void openEdit(supplier.supplier_id)}
-                          title="Edit"
-                        >
-                          <svg
-                            className="w-4 h-4"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                            strokeWidth={2}
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                            />
-                          </svg>
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => requestDelete(supplier)}
-                          title="Delete"
-                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                        >
-                          <svg
-                            className="w-4 h-4"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                            strokeWidth={2}
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                            />
-                          </svg>
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-
-                {!loadingList && paginatedSuppliers.length === 0 && (
+      <div className={PAGE_CONTENT_CLASS}>
+        <Card>
+          <CardBody className="space-y-4 pt-6">
+            <div className="rounded-xl border border-slate-200 overflow-hidden">
+              <Table>
+                <TableHeader>
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center text-sm text-slate-500 py-8">
-                      {search.trim() ? "No suppliers found for this search." : "No suppliers found."}
-                    </TableCell>
+                    <TableHead>Supplier Name</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>City</TableHead>
+                    <TableHead>State</TableHead>
+                    <TableHead>Contact Name</TableHead>
+                    <TableHead>Contact Email</TableHead>
+                    <TableHead>Contact Phone</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </CardBody>
+                </TableHeader>
+                <TableBody>
+                  {paginatedSuppliers.map((supplier) => (
+                    <TableRow key={supplier.supplier_id}>
+                      <TableCell className="font-medium text-slate-900">{supplier.supplier_name}</TableCell>
+                      <TableCell>{supplier.supplier_type ?? "-"}</TableCell>
+                      <TableCell>{supplier.supplier_city ?? "-"}</TableCell>
+                      <TableCell>{supplier.supplier_state ?? "-"}</TableCell>
+                      <TableCell>{supplier.contact_name ?? "-"}</TableCell>
+                      <TableCell className="font-mono text-xs">{supplier.contact_email ?? "-"}</TableCell>
+                      <TableCell>{supplier.contact_phone ?? "-"}</TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => openView(supplier.supplier_id)}
+                            title="View"
+                          >
+                            <svg
+                              className="w-4 h-4"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                              strokeWidth={2}
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                              />
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                              />
+                            </svg>
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => void openEdit(supplier.supplier_id)}
+                            title="Edit"
+                          >
+                            <svg
+                              className="w-4 h-4"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                              strokeWidth={2}
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                              />
+                            </svg>
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => requestDelete(supplier)}
+                            title="Delete"
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                          >
+                            <svg
+                              className="w-4 h-4"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                              strokeWidth={2}
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                              />
+                            </svg>
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
 
-        <CardFooter className="justify-between">
-          <div className="text-sm text-slate-500">
-            Total: <span className="font-medium text-slate-700">{suppliers.length}</span>
-          </div>
-          <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} />
-        </CardFooter>
-      </Card>
+                  {!loadingList && paginatedSuppliers.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={8} className="text-center text-sm text-slate-500 py-8">
+                        {search.trim() ? "No suppliers found for this search." : "No suppliers found."}
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </CardBody>
+
+          <CardFooter className="justify-between">
+            <div className="text-sm text-slate-500">
+              Total: <span className="font-medium text-slate-700">{suppliers.length}</span>
+            </div>
+            <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} />
+          </CardFooter>
+        </Card>
+      </div>
 
       <Modal
         open={showForm}

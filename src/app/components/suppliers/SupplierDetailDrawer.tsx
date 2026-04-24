@@ -64,7 +64,7 @@ export function SupplierDetailDrawer({
       onClose={onClose}
       title="Supplier Detail"
       description="Read-only supplier snapshot"
-      width="w-[34rem]"
+      width="w-[42rem] max-w-[96vw]"
     >
       <div className="p-5">
         {loading ? (

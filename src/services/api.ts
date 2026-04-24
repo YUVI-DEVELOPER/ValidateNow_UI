@@ -1,6 +1,15 @@
 import axios from "axios";
 
-const DEFAULT_API_BASE_URL = "http://localhost:8000";
+function getDefaultApiBaseUrl(): string {
+  if (typeof window === "undefined" || !window.location.hostname) {
+    return "http://localhost:8000";
+  }
+
+  const protocol = window.location.protocol === "https:" ? "https:" : "http:";
+  return `${protocol}//${window.location.hostname}:8000`;
+}
+
+const DEFAULT_API_BASE_URL = getDefaultApiBaseUrl();
 
 const configuredBaseUrl =
   typeof import.meta.env.VITE_API_BASE_URL === "string"

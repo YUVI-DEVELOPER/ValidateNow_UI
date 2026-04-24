@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+﻿import type { ReactNode } from "react";
 
 import type { NavPage } from "./AppSidebar";
 
@@ -47,7 +47,7 @@ export interface PageHeaderStatValue extends PageHeaderStatDefinition {
   value: ReactNode;
 }
 
-const rootCrumb = { label: "ValidateNow" } as const;
+const rootCrumb = { label: "Compliance Manager" } as const;
 
 const withRoot = (...labels: string[]): PageHeaderBreadcrumbItem[] => [
   rootCrumb,
@@ -59,7 +59,7 @@ export const PAGE_HEADER_CONFIG: Record<NavPage, PageHeaderPreset> = {
     page: "login",
     breadcrumbs: withRoot("Login"),
     title: "Login",
-    subtitle: "Access the ValidateNow admin portal.",
+    subtitle: "Access the Compliance Manager workspace.",
     searchEnabled: false,
   },
   "org-structure": {
@@ -175,6 +175,22 @@ export const PAGE_HEADER_CONFIG: Record<NavPage, PageHeaderPreset> = {
       { key: "inactive", label: "Inactive Visible", hint: "Current filter state", tone: "violet" },
     ],
   },
+  "document-portal": {
+    page: "document-portal",
+    breadcrumbs: withRoot("Asset Management", "Document Portal"),
+    sectionLabel: "Documentation",
+    title: "Document Portal",
+    subtitle: "View important asset documents, qualification evidence, and source mappings in one read-only catalog.",
+    searchPlaceholder: "Search document, asset, release, supplier, source, or reference...",
+    secondaryActions: [{ key: "refresh", label: "Refresh", variant: "secondary", icon: "refresh" }],
+    searchEnabled: true,
+    stats: [
+      { key: "documents", label: "Documents", hint: "Important records", tone: "blue" },
+      { key: "assets", label: "Assets", hint: "Mapped sources", tone: "emerald" },
+      { key: "authored", label: "Authored", hint: "URS and FRS drafts", tone: "violet" },
+      { key: "qualification", label: "Qualification", hint: "IQ, OQ, PQ evidence", tone: "amber" },
+    ],
+  },
   "lookup-master": {
     page: "lookup-master",
     breadcrumbs: withRoot("Lookup Master"),
@@ -264,3 +280,4 @@ export const buildPageHeaderStats = (
   ...definition,
   value: values[definition.key] ?? "-",
 }));
+

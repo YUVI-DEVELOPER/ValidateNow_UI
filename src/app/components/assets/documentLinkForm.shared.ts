@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import axios from "axios";
 import {
   CreateDocumentLinkPayload,
+  DocumentAiAutofillAnalyzeResult,
   DocumentLinkRecord,
   UpdateDocumentLinkPayload,
 } from "../../../services/document-link.service";
@@ -26,6 +27,7 @@ export type DocumentLinkContext =
 
 export interface DocumentLinkFormState {
   source_system: string;
+  document_type: string;
   external_document_id: string;
   document_name: string;
   document_version: string;
@@ -39,6 +41,22 @@ export interface DocumentLinkFieldErrors {
   [key: string]: string;
 }
 
+export type DocumentAiAutofillField = "document_type" | "external_document_id" | "document_version";
+
+export type DocumentAiAutofillStatus = "idle" | "analyzing" | "complete" | "failed";
+
+export interface DocumentAiAutofillUiState {
+  status: DocumentAiAutofillStatus;
+  result: DocumentAiAutofillAnalyzeResult | null;
+  error: string | null;
+}
+
+export const EMPTY_DOCUMENT_AI_AUTOFILL_STATE: DocumentAiAutofillUiState = {
+  status: "idle",
+  result: null,
+  error: null,
+};
+
 export const OMS_SOURCE_SYSTEM_FALLBACK_OPTIONS: LookupOption[] = [
   { code: "VEEVA_VAULT", value: "Veeva Vault" },
   { code: "MANUAL_URL", value: "Manual URL" },
@@ -46,8 +64,17 @@ export const OMS_SOURCE_SYSTEM_FALLBACK_OPTIONS: LookupOption[] = [
   { code: "OTHER", value: "Other" },
 ];
 
+export const DOCUMENT_LINK_TYPE_OPTIONS: LookupOption[] = [
+  { code: "URS", value: "URS" },
+  { code: "FRS", value: "FRS" },
+  { code: "SOP", value: "SOP" },
+  { code: "OTHER", value: "Other" },
+  { code: "TRAINING_CONTENT", value: "Training Content" },
+];
+
 export const EMPTY_DOCUMENT_LINK_FORM: DocumentLinkFormState = {
   source_system: "",
+  document_type: "",
   external_document_id: "",
   document_name: "",
   document_version: "",
@@ -98,6 +125,9 @@ const fieldErrorFromMessage = (message?: string | null): DocumentLinkFieldErrors
   const normalized = nextMessage.toLowerCase();
   if (normalized.includes("source_system") || normalized.includes("source system")) {
     return { source_system: nextMessage };
+  }
+  if (normalized.includes("document_type") || normalized.includes("document type")) {
+    return { document_type: nextMessage };
   }
   if (normalized.includes("external_document_id") || normalized.includes("external document id")) {
     return { external_document_id: nextMessage };
@@ -164,6 +194,53 @@ export const formatDocumentSourceSystem = (
     .join(" ");
 };
 
+export const formatDocumentLinkType = (value?: string | null): string => {
+  if (!value) return "-";
+
+  const match = DOCUMENT_LINK_TYPE_OPTIONS.find((item) => item.code === value);
+  if (match?.value) return match.value;
+
+  return value
+    .split(/[_\s-]+/)
+    .filter(Boolean)
+    .map((segment) => {
+      const normalized = segment.toUpperCase();
+      if (normalized === "URS" || normalized === "FRS" || normalized === "SOP") return normalized;
+      return normalized.charAt(0) + normalized.slice(1).toLowerCase();
+    })
+    .join(" ");
+};
+
+export const formatVectorizationStatus = (value?: string | null): string => {
+  if (!value) return "Not requested";
+
+  const normalized = value.toUpperCase();
+  if (normalized === "NOT_SUPPORTED_FOR_VECTORIZATION") return "Not supported";
+  return normalized
+    .split(/[_\s-]+/)
+    .filter(Boolean)
+    .map((segment) => segment.charAt(0) + segment.slice(1).toLowerCase())
+    .join(" ");
+};
+
+export const getVectorizationStatusBadgeClass = (value?: string | null): string => {
+  const normalized = value?.toUpperCase();
+  if (normalized === "COMPLETED") return "border-emerald-200 bg-emerald-50 text-emerald-700";
+  if (normalized === "FAILED") return "border-red-200 bg-red-50 text-red-700";
+  if (normalized === "PROCESSING" || normalized === "QUEUED" || normalized === "PENDING") {
+    return "border-amber-200 bg-amber-50 text-amber-700";
+  }
+  if (normalized === "NOT_SUPPORTED_FOR_VECTORIZATION") return "border-slate-200 bg-slate-100 text-slate-600";
+  return "border-slate-200 bg-white text-slate-600";
+};
+
+const ACTIVE_VECTORIZATION_STATUSES = new Set(["PENDING", "QUEUED", "PROCESSING"]);
+
+export const isDocumentVectorizationActive = (document: DocumentLinkRecord): boolean => {
+  const status = document.vectorization_status || document.vectorization_job?.status;
+  return ACTIVE_VECTORIZATION_STATUSES.has((status ?? "").toUpperCase());
+};
+
 export const getSafeDocumentAccessUrl = (value?: string | null): string | null => {
   const trimmed = value?.trim();
   if (!trimmed || !isHttpUrl(trimmed)) {
@@ -171,6 +248,26 @@ export const getSafeDocumentAccessUrl = (value?: string | null): string | null =
   }
 
   return trimmed;
+};
+
+export const formatLocalDateTimeInput = (value = new Date()): string => {
+  const offsetMs = value.getTimezoneOffset() * 60 * 1000;
+  return new Date(value.getTime() - offsetMs).toISOString().slice(0, 16);
+};
+
+export const formatAiAutofillConfidence = (value?: number | null): string => {
+  if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
+    return "review";
+  }
+
+  return `${Math.round(value * 100)}%`;
+};
+
+export const getAiAutofillConfidenceClass = (value?: number | null): string => {
+  if (typeof value !== "number" || !Number.isFinite(value) || value < 0.68) {
+    return "border-amber-200 bg-amber-50 text-amber-700";
+  }
+  return "border-emerald-200 bg-emerald-50 text-emerald-700";
 };
 
 export const loadOmsSourceSystemOptions = async (): Promise<LookupOption[]> => {
@@ -222,6 +319,7 @@ export const useOmsSourceSystemOptions = (enabled = true) => {
 
 export const documentLinkToForm = (documentLink: DocumentLinkRecord): DocumentLinkFormState => ({
   source_system: documentLink.source_system ?? "",
+  document_type: documentLink.document_type ?? "",
   external_document_id: documentLink.external_document_id ?? "",
   document_name: documentLink.document_name ?? "",
   document_version: documentLink.document_version ?? "",
@@ -237,6 +335,7 @@ export const buildCreateDocumentLinkPayload = (
 ): CreateDocumentLinkPayload => {
   const payload: CreateDocumentLinkPayload = {
     source_system: form.source_system.trim(),
+    document_type: form.document_type.trim(),
     external_document_id: form.external_document_id.trim(),
     document_name: form.document_name.trim(),
     document_version: form.document_version.trim(),
@@ -265,6 +364,7 @@ export const buildUpdateDocumentLinkPayload = (
 
   const fields: Array<keyof DocumentLinkFormState> = [
     "source_system",
+    "document_type",
     "external_document_id",
     "document_name",
     "document_version",
@@ -301,6 +401,9 @@ export const validateDocumentLinkForm = (form: DocumentLinkFormState): DocumentL
 
   if (!form.source_system.trim()) {
     errors.source_system = "Source system is required";
+  }
+  if (!form.document_type.trim()) {
+    errors.document_type = "Document type is required";
   }
   if (!form.external_document_id.trim()) {
     errors.external_document_id = "External document ID is required";
@@ -339,6 +442,7 @@ export const mapDocumentLinkAxiosError = (
 
   const status = error.response.status;
   const data = error.response.data as { message?: string; detail?: unknown } | undefined;
+  const detailMessage = typeof data?.detail === "string" ? data.detail : undefined;
 
   if (status === 400 || status === 422) {
     const fieldErrors: DocumentLinkFieldErrors = {};
@@ -357,18 +461,18 @@ export const mapDocumentLinkAxiosError = (
     const combinedFieldErrors = { ...derivedFieldErrors, ...fieldErrors };
 
     return {
-      message: data?.message || (status === 422 ? "Field validation failed" : "Validation failed"),
+      message: data?.message || detailMessage || (status === 422 ? "Field validation failed" : "Validation failed"),
       fieldErrors: Object.keys(combinedFieldErrors).length > 0 ? combinedFieldErrors : undefined,
     };
   }
 
   if (status === 404) {
-    return { message: data?.message || "Document link not found" };
+    return { message: data?.message || detailMessage || "Document link not found" };
   }
 
   if (status === 409) {
     const message =
-      data?.message || "A document with this source system and external document ID is already linked";
+      data?.message || detailMessage || "A document with this source system and external document ID is already linked";
 
     return {
       message,
@@ -379,7 +483,7 @@ export const mapDocumentLinkAxiosError = (
     };
   }
 
-  return { message: data?.message || error.message || "Request failed" };
+  return { message: data?.message || detailMessage || error.message || "Request failed" };
 };
 
 export const renderDocumentLinkFieldError = (

@@ -9,6 +9,7 @@ import { AssetDashboardPage } from "./pages/assets/AssetDashboardPage";
 import { AssetGroupingPage } from "./pages/assets/AssetGroupingPage";
 import { AssetInventoryReportingPage } from "./pages/assets/AssetInventoryReportingPage";
 import { AssetSpecsPage } from "./pages/assets/AssetSpecsPage";
+import { DocumentPortalPage } from "./pages/assets/DocumentPortalPage";
 import { LookupMasterPage } from "./pages/LookupMasterPage";
 import { LookupValuesPage } from "./pages/LookupValuesPage";
 import { GraphHierarchyPage } from "./pages/graph/GraphHierarchyPage";
@@ -46,6 +47,7 @@ export default function App() {
       {page === "asset-dashboard" && <AssetDashboardPage onNavigate={(p: string) => setPage(p as NavPage)} />}
       {page === "asset-grouping" && <AssetGroupingPage />}
       {page === "asset-specs" && <AssetSpecsPage onNavigate={setPage} />}
+      {page === "document-portal" && <DocumentPortalPage />}
       {page === "lookup-master" && <LookupMasterPage onNavigate={setPage} />}
       {page === "lookup-values" && <LookupValuesPage onNavigate={setPage} />}
       {page === "data-entry" && (
@@ -67,3 +69,5 @@ export default function App() {
     </AppShell>
   );
 }
+
+

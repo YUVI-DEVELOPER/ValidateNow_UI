@@ -7,6 +7,7 @@ import { Button } from "../ui/Button";
 import { Card, CardBody, CardHeader } from "../ui/Card";
 import { Input, Textarea } from "../ui/Input";
 import { ConfirmDialog, Modal } from "../ui/Modal";
+import { Skeleton } from "../ui/skeleton";
 import { LookupOption, getLookupOptionsByMasterCode } from "../../services/lookupValue.service";
 import { buildLookupLabelMap, getLookupLabel } from "./orgUiLabels";
 import {
@@ -104,7 +105,6 @@ const SummaryTile = ({
         {icon}
       </div>
     </div>
-    <p className="mt-2 text-sm text-slate-500">{hint}</p>
   </div>
 );
 
@@ -292,8 +292,9 @@ export function OrgRoleAssignmentsPanel({
 
   return (
     <>
-      <Card padding="none" className="border-slate-200 shadow-sm">
+      <Card padding="none" className="min-h-[320px] border-slate-200 shadow-sm">
         <CardHeader
+          className="shrink-0"
           title="Governance Coverage"
           description={
             orgId
@@ -312,11 +313,11 @@ export function OrgRoleAssignmentsPanel({
             </Button>
           }
         />
-        <CardBody className="space-y-4 px-6 pb-6">
+        <CardBody className="min-h-[220px] space-y-4 px-6 pb-6">
           {error && <div className="rounded-2xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
           {!orgId && (
             <div className="rounded-2xl border border-dashed border-slate-200 px-4 py-5 text-sm text-slate-500">
-              Choose an organization from the map to view governance ownership and assigned leaders.
+              No organization selected.
             </div>
           )}
           {orgId && (
@@ -341,7 +342,15 @@ export function OrgRoleAssignmentsPanel({
               />
             </div>
           )}
-          {orgId && loading && <div className="text-sm text-slate-500">Loading accountability assignments...</div>}
+          {orgId && loading && (
+            <div className="min-h-[96px] rounded-2xl border border-slate-200 px-4 py-4">
+              <div className="space-y-3">
+                <Skeleton className="h-4 w-56 max-w-full" />
+                <Skeleton className="h-3 w-full" />
+                <Skeleton className="h-3 w-2/3" />
+              </div>
+            </div>
+          )}
           {orgId && !loading && assignments.length === 0 && (
             <div className="rounded-2xl border border-dashed border-slate-200 px-4 py-5 text-sm text-slate-500">
               No accountability assignments have been recorded for this organization yet.

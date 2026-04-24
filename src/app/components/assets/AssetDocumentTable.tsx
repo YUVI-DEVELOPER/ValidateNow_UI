@@ -1,4 +1,5 @@
 import React from "react";
+import { ExternalLink, Pencil, RotateCw, Trash2 } from "lucide-react";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import {
@@ -13,8 +14,11 @@ import { DocumentLinkRecord } from "../../../services/document-link.service";
 import { LookupOption } from "../../services/lookupValue.service";
 import {
   formatDocumentLinkDate,
+  formatDocumentLinkType,
   formatDocumentSourceSystem,
+  formatVectorizationStatus,
   getSafeDocumentAccessUrl,
+  getVectorizationStatusBadgeClass,
 } from "./documentLinkForm.shared";
 
 interface AssetDocumentTableProps {
@@ -22,6 +26,7 @@ interface AssetDocumentTableProps {
   loading: boolean;
   onEdit: (document: DocumentLinkRecord) => void;
   onDelete: (document: DocumentLinkRecord) => void;
+  onReprocess?: (document: DocumentLinkRecord) => void;
   sourceSystemOptions?: LookupOption[];
   emptyMessage?: string;
 }
@@ -31,6 +36,7 @@ export function AssetDocumentTable({
   loading,
   onEdit,
   onDelete,
+  onReprocess,
   sourceSystemOptions = [],
   emptyMessage = "No documents linked for this asset. Add the first validated document.",
 }: AssetDocumentTableProps) {
@@ -40,10 +46,12 @@ export function AssetDocumentTable({
         <TableHeader>
           <TableRow className="bg-slate-50">
             <TableHead className="font-semibold">Document Name</TableHead>
+            <TableHead className="font-semibold">Type</TableHead>
             <TableHead className="font-semibold">Version</TableHead>
             <TableHead className="font-semibold">Source System</TableHead>
             <TableHead className="font-semibold">External Document ID</TableHead>
             <TableHead className="font-semibold">Upload Date</TableHead>
+            <TableHead className="font-semibold">Vectorization</TableHead>
             <TableHead className="font-semibold">Access</TableHead>
             <TableHead className="font-semibold text-right">Actions</TableHead>
           </TableRow>
@@ -51,13 +59,13 @@ export function AssetDocumentTable({
         <TableBody>
           {loading ? (
             <TableRow>
-              <TableCell colSpan={7} className="py-8 text-center text-slate-500">
+              <TableCell colSpan={9} className="py-8 text-center text-slate-500">
                 Loading documents...
               </TableCell>
             </TableRow>
           ) : documents.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={7} className="py-8 text-center text-slate-500">
+              <TableCell colSpan={9} className="py-8 text-center text-slate-500">
                 {emptyMessage}
               </TableCell>
             </TableRow>
@@ -66,7 +74,11 @@ export function AssetDocumentTable({
               const safeAccessUrl = getSafeDocumentAccessUrl(document.access_url);
               const documentName = document.document_name?.trim() || "-";
               const externalDocumentId = document.external_document_id?.trim() || "-";
+              const documentTypeLabel = formatDocumentLinkType(document.document_type);
               const sourceSystemLabel = formatDocumentSourceSystem(document.source_system, sourceSystemOptions);
+              const vectorizationJob = document.vectorization_job;
+              const vectorizationLabel = formatVectorizationStatus(document.vectorization_status);
+              const vectorizationTitle = vectorizationJob?.error_message || vectorizationLabel;
 
               return (
                 <TableRow key={document.document_link_id} className="hover:bg-slate-50">
@@ -77,6 +89,15 @@ export function AssetDocumentTable({
                     >
                       {documentName}
                     </div>
+                  </TableCell>
+                  <TableCell>
+                    <Badge
+                      variant="outline"
+                      className="border-indigo-200 bg-indigo-50 text-indigo-700"
+                      title={documentTypeLabel}
+                    >
+                      {documentTypeLabel}
+                    </Badge>
                   </TableCell>
                   <TableCell>{document.document_version || "-"}</TableCell>
                   <TableCell>
@@ -99,10 +120,53 @@ export function AssetDocumentTable({
                   <TableCell title={document.upload_dt ?? undefined}>
                     {formatDocumentLinkDate(document.upload_dt)}
                   </TableCell>
+                  <TableCell className="align-top">
+                    <div className="flex flex-col items-start gap-1.5">
+                      <Badge
+                        variant="outline"
+                        className={getVectorizationStatusBadgeClass(document.vectorization_status)}
+                        title={vectorizationTitle}
+                      >
+                        {vectorizationLabel}
+                      </Badge>
+                      {vectorizationJob?.chunk_count ? (
+                        <span className="text-xs text-slate-500">{vectorizationJob.chunk_count} chunks</span>
+                      ) : null}
+                      {vectorizationJob?.requested_at ? (
+                        <span className="text-xs text-slate-500">
+                          Requested {formatDocumentLinkDate(vectorizationJob.requested_at)}
+                        </span>
+                      ) : null}
+                      {vectorizationJob?.completed_at ? (
+                        <span className="text-xs text-slate-500">
+                          Completed {formatDocumentLinkDate(vectorizationJob.completed_at)}
+                        </span>
+                      ) : null}
+                      {vectorizationJob?.error_message ? (
+                        <span className="max-w-[14rem] truncate text-xs text-red-600" title={vectorizationJob.error_message}>
+                          {vectorizationJob.error_message}
+                        </span>
+                      ) : null}
+                      {vectorizationJob?.can_reprocess && onReprocess ? (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => onReprocess(document)}
+                          title="Reprocess Vectorization"
+                          className="h-7 px-2 text-xs"
+                        >
+                          <RotateCw className="size-3.5" />
+                          Reprocess
+                        </Button>
+                      ) : null}
+                    </div>
+                  </TableCell>
                   <TableCell>
                     {safeAccessUrl ? (
                       <Button variant="ghost" size="sm" asChild>
                         <a href={safeAccessUrl} target="_blank" rel="noopener noreferrer">
+                          <ExternalLink className="size-4" />
                           Open
                         </a>
                       </Button>
@@ -118,9 +182,7 @@ export function AssetDocumentTable({
                         onClick={() => onEdit(document)}
                         title="Edit Document"
                       >
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                        </svg>
+                        <Pencil className="size-4" />
                       </Button>
                       <Button
                         variant="ghost"
@@ -129,9 +191,7 @@ export function AssetDocumentTable({
                         title="Delete Document"
                         className="text-red-600 hover:text-red-700 hover:bg-red-50"
                       >
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
+                        <Trash2 className="size-4" />
                       </Button>
                     </div>
                   </TableCell>

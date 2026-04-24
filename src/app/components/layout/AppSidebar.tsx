@@ -8,6 +8,7 @@ export type NavPage =
   | "asset-dashboard"
   | "asset-grouping"
   | "asset-specs"
+  | "document-portal"
   | "lookup-master"
   | "lookup-values"
   | "data-entry"
@@ -87,6 +88,18 @@ const navItems: NavItem[] = [
     ),
   },
   {
+    key: "document-portal",
+    label: "Document Portal",
+    group: "Analytics",
+    icon: (
+      <svg className="w-4.5 h-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M7 4h7l5 5v11a2 2 0 01-2 2H7a2 2 0 01-2-2V6a2 2 0 012-2z" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M14 4v5h5M8 13h8M8 17h5" />
+      </svg>
+    ),
+  },
+
+  {
     key: "reports",
     label: "Asset Inventory Report",
     group: "Analytics",
@@ -153,8 +166,7 @@ export function AppSidebar({ activePage, onNavigate }: AppSidebarProps) {
         </div>
         {!collapsed && (
           <div className="min-w-0">
-            <div className="text-white font-bold text-sm leading-tight tracking-wide">ValidateNow</div>
-            <div className="text-slate-500 text-xs mt-0.5">Admin Portal</div>
+            <div className="text-white font-bold text-sm leading-tight tracking-wide">Compliance Manager</div>
           </div>
         )}
         <button
@@ -270,6 +282,9 @@ export function AppSidebar({ activePage, onNavigate }: AppSidebarProps) {
     </aside>
   );
 }
+
+
+
 
 
 

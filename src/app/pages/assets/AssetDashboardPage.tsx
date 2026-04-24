@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { OrgTreePanel } from "../../components/assets/OrgTreePanel";
 import { AssetTable } from "../../components/assets/AssetTable";
@@ -28,7 +28,7 @@ import {
   getAssetNatures,
 } from "../../services/lookupOption.service";
 import { filterAllowedAssetStatusOptions } from "../../components/assets/assetForm.shared";
-import { CommonPageHeader } from "../../components/layout/CommonPageHeader";
+import { CommonPageHeader, PAGE_CONTENT_CLASS, PAGE_LAYOUT_SHELL_CLASS } from "../../components/layout/CommonPageHeader";
 import { buildPageHeaderStats, getPageHeaderConfig } from "../../components/layout/pageHeaderConfig";
 import {
   AlertDialog,
@@ -237,7 +237,7 @@ export function AssetDashboardPage({ onNavigate }: AssetDashboardPageProps) {
   });
 
   return (
-    <div className="p-6 space-y-4">
+    <div className={PAGE_LAYOUT_SHELL_CLASS}>
       <CommonPageHeader
         breadcrumbs={header.breadcrumbs}
         sectionLabel={header.sectionLabel}
@@ -266,40 +266,38 @@ export function AssetDashboardPage({ onNavigate }: AssetDashboardPageProps) {
         ]}
       />
 
-      {/* Main Content - 3 Panel Layout */}
-      <div className="flex min-h-[620px] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-        {/* Left Panel - Organization Tree */}
-        <div
-          className="flex-shrink-0 border-r border-slate-200 overflow-hidden"
-          style={{ width: ORG_PANEL_WIDTH }}
-        >
-          <OrgTreePanel
-            orgTree={orgTree}
-            selectedOrgId={selectedOrgId}
-            onSelectOrg={handleSelectOrg}
-          />
-        </div>
+      <div className={PAGE_CONTENT_CLASS}>
+        <div className="flex min-h-[620px] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <div
+            className="flex-shrink-0 overflow-hidden border-r border-slate-200"
+            style={{ width: ORG_PANEL_WIDTH }}
+          >
+            <OrgTreePanel
+              orgTree={orgTree}
+              selectedOrgId={selectedOrgId}
+              onSelectOrg={handleSelectOrg}
+            />
+          </div>
 
-        {/* Center Panel - Asset Table */}
-        <div className="flex-1 overflow-auto p-6 bg-slate-50">
-          <AssetTable
-            assets={assets}
-            loading={loading}
-            searchQuery={searchQuery}
-            orgTree={orgTree}
-            suppliers={supplierList}
-            assetClasses={assetClasses}
-            assetTypes={assetTypes}
-            assetStatuses={assetStatuses}
-            criticalities={criticalities}
-            onView={handleView}
-            onEdit={handleEdit}
-            onDelete={handleDeleteClick}
-          />
+          <div className="flex-1 overflow-auto bg-slate-50 p-6">
+            <AssetTable
+              assets={assets}
+              loading={loading}
+              searchQuery={searchQuery}
+              orgTree={orgTree}
+              suppliers={supplierList}
+              assetClasses={assetClasses}
+              assetTypes={assetTypes}
+              assetStatuses={assetStatuses}
+              criticalities={criticalities}
+              onView={handleView}
+              onEdit={handleEdit}
+              onDelete={handleDeleteClick}
+            />
+          </div>
         </div>
       </div>
 
-      {/* Create Modal */}
       <CreateAssetModal
         open={createModalOpen}
         onClose={() => setCreateModalOpen(false)}
@@ -317,7 +315,6 @@ export function AssetDashboardPage({ onNavigate }: AssetDashboardPageProps) {
         assetNatures={assetNatures}
       />
 
-      {/* Edit Modal */}
       <EditAssetModal
         open={editModalOpen}
         assetId={selectedAssetId}
@@ -338,7 +335,6 @@ export function AssetDashboardPage({ onNavigate }: AssetDashboardPageProps) {
         assetNatures={assetNatures}
       />
 
-      {/* Detail Drawer */}
       <AssetDetailDrawer
         open={detailDrawerOpen}
         assetId={selectedAssetId}
@@ -360,7 +356,6 @@ export function AssetDashboardPage({ onNavigate }: AssetDashboardPageProps) {
         assetNatures={assetNatures}
       />
 
-      {/* Delete Confirmation Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>

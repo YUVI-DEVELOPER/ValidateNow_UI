@@ -17,17 +17,27 @@ import {
   deleteDocumentLink,
   DocumentLinkRecord,
   getReleaseDocuments,
+  reprocessDocumentVectorization,
 } from "../../../services/document-link.service";
 import { ReleaseRecord } from "../../../services/release.service";
+import { SupplierRecord } from "../../../services/supplier.service";
+import { AuthoredDocumentPanel } from "./AuthoredDocumentPanel";
 import { AssetDocumentTable } from "./AssetDocumentTable";
 import { CreateDocumentLinkModal } from "./CreateDocumentLinkModal";
 import { EditDocumentLinkModal } from "./EditDocumentLinkModal";
-import { DocumentLinkContext, mapDocumentLinkAxiosError } from "./documentLinkForm.shared";
+import {
+  DocumentLinkContext,
+  isDocumentVectorizationActive,
+  mapDocumentLinkAxiosError,
+} from "./documentLinkForm.shared";
+import { QualificationDocumentPanel } from "./QualificationDocumentPanel";
 
 interface ReleaseDocumentsModalProps {
   open: boolean;
   release: ReleaseRecord | null;
   assetName?: string | null;
+  assetCode?: string | null;
+  suppliers: SupplierRecord[];
   sourceSystemOptions?: LookupOption[];
   onClose: () => void;
 }
@@ -56,6 +66,8 @@ export function ReleaseDocumentsModal({
   open,
   release,
   assetName,
+  assetCode,
+  suppliers,
   sourceSystemOptions = [],
   onClose,
 }: ReleaseDocumentsModalProps) {
@@ -80,18 +92,26 @@ export function ReleaseDocumentsModal({
     [assetName, release?.created_dt, release?.end_dt, release?.version, releaseId],
   );
 
-  const loadDocuments = useCallback(async () => {
+  const loadDocuments = useCallback(async (options: { silent?: boolean } = {}) => {
     if (!releaseId) return;
 
-    setLoading(true);
+    if (!options.silent) {
+      setLoading(true);
+    }
     try {
       const data = await getReleaseDocuments(releaseId);
       setDocuments(data);
     } catch (error) {
-      const mapped = mapDocumentLinkAxiosError(error);
-      toast.error(mapped.message);
+      if (options.silent) {
+        console.error("Failed to refresh release document vectorization status:", error);
+      } else {
+        const mapped = mapDocumentLinkAxiosError(error);
+        toast.error(mapped.message);
+      }
     } finally {
-      setLoading(false);
+      if (!options.silent) {
+        setLoading(false);
+      }
     }
   }, [releaseId]);
 
@@ -104,6 +124,21 @@ export function ReleaseDocumentsModal({
 
     void loadDocuments();
   }, [loadDocuments, open, releaseId]);
+
+  const hasActiveDocumentVectorization = useMemo(
+    () => documents.some(isDocumentVectorizationActive),
+    [documents],
+  );
+
+  useEffect(() => {
+    if (!open || !releaseId || !hasActiveDocumentVectorization) return;
+
+    const intervalId = window.setInterval(() => {
+      void loadDocuments({ silent: true });
+    }, 3000);
+
+    return () => window.clearInterval(intervalId);
+  }, [hasActiveDocumentVectorization, loadDocuments, open, releaseId]);
 
   useEffect(() => {
     if (open) return;
@@ -135,6 +170,17 @@ export function ReleaseDocumentsModal({
       setDeleting(false);
       setDeleteDialogOpen(false);
       setDocumentToDelete(null);
+    }
+  };
+
+  const handleReprocessDocument = async (document: DocumentLinkRecord) => {
+    try {
+      await reprocessDocumentVectorization(document.document_link_id);
+      toast.success("Document vectorization queued");
+      await loadDocuments({ silent: true });
+    } catch (error) {
+      const mapped = mapDocumentLinkAxiosError(error);
+      toast.error(mapped.message);
     }
   };
 
@@ -183,19 +229,58 @@ export function ReleaseDocumentsModal({
             </div>
           </div>
 
-          <div className="rounded-lg border border-slate-200 bg-white px-4 py-3 max-w-xs">
-            <p className="text-xs text-slate-500">Linked Documents</p>
-            <p className="mt-1 text-lg font-semibold text-slate-900">{documents.length}</p>
-          </div>
-
-          <AssetDocumentTable
-            documents={documents}
-            loading={loading}
-            onEdit={(document) => setEditDocumentId(document.document_link_id)}
-            onDelete={handleDeleteClick}
-            sourceSystemOptions={sourceSystemOptions}
-            emptyMessage="No documents linked for this release. Add the first validated document."
+          <AuthoredDocumentPanel
+            enabled={open && Boolean(releaseId)}
+            context={{
+              type: "release",
+              releaseId,
+              assetName,
+              assetCode,
+              releaseVersion: release?.version ?? null,
+            }}
+            description="Create and route release-linked URS documents through deterministic or AI-assisted draft generation, then publish approved URS documents to Veeva while keeping external linked-document references intact."
+            emptyMessage="No authored documents created for this release yet. Start with a URS draft."
           />
+
+          <QualificationDocumentPanel
+            enabled={open && Boolean(releaseId)}
+            context={{
+              type: "release",
+              assetId: release?.asset_id ?? null,
+              releaseId,
+              assetName,
+              assetCode,
+              releaseVersion: release?.version ?? null,
+            }}
+            suppliers={suppliers}
+            sourceSystemOptions={sourceSystemOptions}
+            description="Manage supplier-submitted IQ/OQ/PQ evidence specific to this release, including supplier linkage, controlled review status, and audit history."
+            emptyMessage="No qualification documents linked for this release yet. Register the first supplier IQ/OQ/PQ record."
+          />
+
+          <div className="space-y-4 rounded-xl border border-slate-200 bg-slate-50/60 p-4">
+            <div>
+              <p className="text-sm font-semibold text-slate-900">Linked Documents</p>
+              <p className="mt-1 text-xs text-slate-500">
+                External validated document references for this release remain managed here.
+              </p>
+            </div>
+
+            <div className="rounded-lg border border-slate-200 bg-white px-4 py-3 max-w-xs">
+              <p className="text-xs text-slate-500">Linked Documents</p>
+              <p className="mt-1 text-lg font-semibold text-slate-900">{documents.length}</p>
+            </div>
+
+            <AssetDocumentTable
+              documents={documents}
+              loading={loading}
+              onEdit={(document) => setEditDocumentId(document.document_link_id)}
+              onDelete={handleDeleteClick}
+              onReprocess={(document) => void handleReprocessDocument(document)}
+              sourceSystemOptions={sourceSystemOptions}
+              emptyMessage="No documents linked for this release. Add the first validated document."
+            />
+          </div>
         </div>
       </Modal>
 

@@ -57,7 +57,6 @@ export function Modal({
           <div className="flex items-start justify-between px-6 py-5 border-b border-slate-100 shrink-0">
             <div>
               <h3 className="text-base font-semibold text-slate-900">{title}</h3>
-              {description && <p className="text-sm text-slate-500 mt-0.5">{description}</p>}
             </div>
             {closeButtonTooltip ? (
               <Tooltip>
@@ -111,7 +110,7 @@ interface DrawerProps {
 }
 
 export function Drawer({
-  open, onClose, title, description, children, footer, side = "right", width = "w-96",
+  open, onClose, title, description, children, footer, side = "right", width = "w-[42rem] max-w-[96vw]",
 }: DrawerProps) {
   useEffect(() => {
     const handler = (e: KeyboardEvent) => { if (e.key === "Escape" && open) onClose(); };
@@ -127,14 +126,13 @@ export function Drawer({
       <div className="absolute inset-0 bg-slate-900/30 backdrop-blur-[2px]" onClick={onClose} />
       {/* Panel */}
       <div
-        className={`absolute inset-y-0 ${side === "right" ? "right-0" : "left-0"} ${width} bg-white shadow-xl flex flex-col border-l border-slate-200`}
+        className={`absolute inset-y-0 ${side === "right" ? "right-0 border-l" : "left-0 border-r"} ${width} bg-white shadow-xl flex flex-col border-slate-200`}
         style={{ transition: "transform 200ms ease" }}
       >
         {/* Header */}
         <div className="flex items-start justify-between px-5 py-4 border-b border-slate-100 shrink-0">
           <div>
             {title && <h3 className="text-sm font-semibold text-slate-900">{title}</h3>}
-            {description && <p className="text-xs text-slate-400 mt-0.5">{description}</p>}
           </div>
           <button
             onClick={onClose}

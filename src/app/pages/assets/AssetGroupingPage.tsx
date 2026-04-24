@@ -17,7 +17,7 @@ import { AssetGroupFormDialog, type AssetGroupFormValues } from "../../component
 import { AssetGroupMembershipDialog } from "../../components/assets/AssetGroupMembershipDialog";
 import { AssetGroupTree } from "../../components/assets/AssetGroupTree";
 import { flattenOrgTreeOptions } from "../../components/assets/assetForm.shared";
-import { CommonPageHeader } from "../../components/layout/CommonPageHeader";
+import { CommonPageHeader, PAGE_CONTENT_CLASS, PAGE_LAYOUT_SHELL_CLASS } from "../../components/layout/CommonPageHeader";
 import { buildPageHeaderStats, getPageHeaderConfig } from "../../components/layout/pageHeaderConfig";
 import {
   AlertDialog,
@@ -289,7 +289,7 @@ export function AssetGroupingPage() {
   };
 
   return (
-    <div className="space-y-4 p-6">
+    <div className={PAGE_LAYOUT_SHELL_CLASS}>
       <CommonPageHeader
         breadcrumbs={header.breadcrumbs}
         sectionLabel={header.sectionLabel}
@@ -334,36 +334,31 @@ export function AssetGroupingPage() {
         ]}
       />
 
-      <div className="grid gap-4 xl:grid-cols-[360px,minmax(0,1fr)]">
-        <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <div className="space-y-1 border-b border-slate-200 pb-4">
-            <h2 className="text-lg font-semibold text-slate-900">Grouping Hierarchy</h2>
-            <p className="text-sm text-slate-500">
-              Systems are top-level groups. Sub-systems can belong to one system and hold direct asset memberships.
-            </p>
-          </div>
+      <div className={PAGE_CONTENT_CLASS}>
+        <div className="grid gap-4 xl:grid-cols-[360px,minmax(0,1fr)]">
+          <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="space-y-1 border-b border-slate-200 pb-4">
+              <h2 className="text-lg font-semibold text-slate-900">Grouping Hierarchy</h2>
+            </div>
 
-          <div className="mt-4">
-            <AssetGroupTree
-              groups={filteredTree}
-              selectedGroupId={selectedGroupId}
-              loading={groupTreeLoading}
-              onSelectGroup={setSelectedGroupId}
-            />
-          </div>
-        </section>
+            <div className="mt-4">
+              <AssetGroupTree
+                groups={filteredTree}
+                selectedGroupId={selectedGroupId}
+                loading={groupTreeLoading}
+                onSelectGroup={setSelectedGroupId}
+              />
+            </div>
+          </section>
 
-        <div className="space-y-4">
-          {!selectedGroup ? (
-            <section className="rounded-2xl border border-dashed border-slate-200 bg-white px-6 py-12 text-center shadow-sm">
-              <h2 className="text-lg font-semibold text-slate-900">Select a Group</h2>
-              <p className="mt-2 text-sm text-slate-500">
-                Choose a system or sub-system from the hierarchy to manage its connected assets and parent-child structure.
-              </p>
-            </section>
-          ) : (
-            <>
-              <section className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <div className="space-y-4">
+            {!selectedGroup ? (
+              <section className="rounded-2xl border border-dashed border-slate-200 bg-white px-6 py-12 text-center shadow-sm">
+                <h2 className="text-lg font-semibold text-slate-900">Select a Group</h2>
+              </section>
+            ) : (
+              <>
+                <section className="rounded-2xl border border-slate-200 bg-white shadow-sm">
                 <div className="flex flex-col gap-4 border-b border-slate-200 px-5 py-4 xl:flex-row xl:items-start xl:justify-between">
                   <div className="space-y-2">
                     <div className="flex flex-wrap items-center gap-2">
@@ -382,7 +377,7 @@ export function AssetGroupingPage() {
                       )}
                     </div>
                     <div className="text-sm text-slate-500">
-                      {selectedGroup.group_code ? `${selectedGroup.group_code} • ` : ""}
+                      {selectedGroup.group_code ? `${selectedGroup.group_code} - ` : ""}
                       {selectedGroup.parent_group_name
                         ? `Parent system: ${selectedGroup.parent_group_name}`
                         : "Top-level grouping"}
@@ -455,7 +450,7 @@ export function AssetGroupingPage() {
                           >
                             <div className="text-sm font-medium text-slate-900">{group.group_name}</div>
                             <div className="mt-1 text-xs text-slate-500">
-                              {group.group_code ? `${group.group_code} • ` : ""}
+                              {group.group_code ? `${group.group_code} - ` : ""}
                               {group.direct_asset_count} direct asset{group.direct_asset_count === 1 ? "" : "s"}
                             </div>
                           </button>
@@ -466,13 +461,10 @@ export function AssetGroupingPage() {
                 </div>
               </section>
 
-              <section className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+                <section className="rounded-2xl border border-slate-200 bg-white shadow-sm">
                 <div className="flex flex-col gap-3 border-b border-slate-200 px-5 py-4 xl:flex-row xl:items-center xl:justify-between">
                   <div>
                     <h2 className="text-lg font-semibold text-slate-900">Direct Asset Membership</h2>
-                    <p className="mt-1 text-sm text-slate-500">
-                      Assets listed here belong directly to this {selectedGroup.group_type === "SYSTEM" ? "system" : "sub-system"}.
-                    </p>
                   </div>
                   <Button
                     type="button"
@@ -537,9 +529,10 @@ export function AssetGroupingPage() {
                     </TableBody>
                   </Table>
                 </div>
-              </section>
-            </>
-          )}
+                </section>
+              </>
+            )}
+          </div>
         </div>
       </div>
 
@@ -621,3 +614,4 @@ export function AssetGroupingPage() {
     </div>
   );
 }
+

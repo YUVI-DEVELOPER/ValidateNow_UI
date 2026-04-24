@@ -39,9 +39,8 @@ const FieldError = ({ error }: { error?: string }) =>
   error ? <p className="text-xs text-red-600">{error}</p> : null;
 
 const SectionTitle = ({ title, description }: { title: string; description: string }) => (
-  <div className="space-y-1">
+  <div>
     <h4 className="text-sm font-semibold text-slate-900">{title}</h4>
-    <p className="text-xs text-slate-500">{description}</p>
   </div>
 );
 

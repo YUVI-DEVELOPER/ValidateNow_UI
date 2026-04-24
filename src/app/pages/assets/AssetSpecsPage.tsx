@@ -1,4 +1,4 @@
-﻿import React, { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import React, { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { toast, Toaster } from "sonner";
 
 import { Button } from "../../components/ui/button";
@@ -8,7 +8,7 @@ import { Card, CardBody, CardFooter, CardHeader } from "../../components/ui/card
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../components/ui/table";
 import { NavPage } from "../../components/layout/AppSidebar";
-import { CommonPageHeader } from "../../components/layout/CommonPageHeader";
+import { CommonPageHeader, PAGE_CONTENT_CLASS, PAGE_LAYOUT_SHELL_CLASS } from "../../components/layout/CommonPageHeader";
 import { LookupValue, getLookupValuesByMasterCode } from "../../services/lookupValue.service";
 import { buildPageHeaderStats, getPageHeaderConfig } from "../../components/layout/pageHeaderConfig";
 import {
@@ -281,7 +281,7 @@ export function AssetSpecsPage({ onNavigate }: AssetSpecsPageProps) {
   });
 
   return (
-    <div className="p-6 space-y-4">
+    <div className={PAGE_LAYOUT_SHELL_CLASS}>
       <CommonPageHeader
         breadcrumbs={header.breadcrumbs}
         sectionLabel={header.sectionLabel}
@@ -306,147 +306,149 @@ export function AssetSpecsPage({ onNavigate }: AssetSpecsPageProps) {
         ]}
       />
 
-      {error && <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
+      <div className={PAGE_CONTENT_CLASS}>
+        {error && <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
 
-      <Card className="shadow-sm">
-        <CardBody className="pt-5">
-          <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_280px]">
-            <div className="space-y-2">
-              <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">Filter by Sub-category</label>
-              <Select value={selectedSubCategoryId || "all"} onValueChange={(value) => setSelectedSubCategoryId(value === "all" ? "" : value)} disabled={subCategoriesLoading}>
-                <SelectTrigger><SelectValue placeholder={subCategoriesLoading ? "Loading sub-categories..." : "All sub-categories"} /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All sub-categories</SelectItem>
-                  {subCategories.map((value) => <SelectItem key={value.id} value={String(value.id)}>{labelForSubCategory(value)}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <div className="text-xs font-semibold uppercase tracking-wider text-slate-500">Include inactive</div>
-                  <div className="text-xs text-slate-400">Show deactivated rows</div>
+        <Card className="shadow-sm">
+          <CardBody className="pt-5">
+            <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_280px]">
+              <div className="space-y-2">
+                <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">Filter by Sub-category</label>
+                <Select value={selectedSubCategoryId || "all"} onValueChange={(value) => setSelectedSubCategoryId(value === "all" ? "" : value)} disabled={subCategoriesLoading}>
+                  <SelectTrigger><SelectValue placeholder={subCategoriesLoading ? "Loading sub-categories..." : "All sub-categories"} /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All sub-categories</SelectItem>
+                    {subCategories.map((value) => <SelectItem key={value.id} value={String(value.id)}>{labelForSubCategory(value)}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <div className="text-xs font-semibold uppercase tracking-wider text-slate-500">Include inactive</div>
+                    <div className="text-xs text-slate-400">Show deactivated rows</div>
+                  </div>
+                  <Toggle pressed={includeInactive} onPressedChange={(pressed) => setIncludeInactive(Boolean(pressed))} />
                 </div>
-                <Toggle pressed={includeInactive} onPressedChange={(pressed) => setIncludeInactive(Boolean(pressed))} />
               </div>
             </div>
-          </div>
-        </CardBody>
-      </Card>
+          </CardBody>
+        </Card>
 
-      <div className="grid grid-cols-12 gap-4">
-        <div className="col-span-12 xl:col-span-8 space-y-4">
-          {loading && <div className="rounded-xl border border-slate-200 bg-white px-4 py-10 text-center text-sm text-slate-500">Loading asset specs...</div>}
+        <div className="grid grid-cols-12 gap-4">
+          <div className="col-span-12 xl:col-span-8 space-y-4">
+            {loading && <div className="rounded-xl border border-slate-200 bg-white px-4 py-10 text-center text-sm text-slate-500">Loading asset specs...</div>}
 
-          {!loading && groupedSpecs.length === 0 && (
-            <div className="rounded-xl border border-dashed border-slate-300 bg-white px-4 py-12 text-center">
-              <h3 className="text-base font-semibold text-slate-800">No asset specs found</h3>
-              <p className="mt-1 text-sm text-slate-500">Try clearing the filters or create the first specification row.</p>
-              <div className="mt-4"><Button type="button" onClick={openCreate}>Create Spec</Button></div>
-            </div>
-          )}
+            {!loading && groupedSpecs.length === 0 && (
+              <div className="rounded-xl border border-dashed border-slate-300 bg-white px-4 py-12 text-center">
+                <h3 className="text-base font-semibold text-slate-800">No asset specs found</h3>
+                <p className="mt-1 text-sm text-slate-500">Try clearing the filters or create the first specification row.</p>
+                <div className="mt-4"><Button type="button" onClick={openCreate}>Create Spec</Button></div>
+              </div>
+            )}
 
-          {!loading && groupedSpecs.map((subCategoryGroup) => (
-            <Card key={subCategoryGroup.subCategoryId} className="shadow-sm" padding="none">
-              <CardHeader title={subCategoryGroup.subCategoryLabel} description={`${subCategoryGroup.subCategoryCode} • ${subCategoryGroup.groups.reduce((count, group) => count + group.items.length, 0)} rows`} />
-              <CardBody className="space-y-4 pb-6">
-                {subCategoryGroup.groups.map((section) => (
-                  <div key={section.grouping} className="rounded-xl border border-slate-200 bg-slate-50/60">
-                    <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
-                      <div>
-                        <div className="text-sm font-semibold text-slate-800">{section.grouping}</div>
-                        <div className="text-xs text-slate-500">{section.items.length} specification rows</div>
+            {!loading && groupedSpecs.map((subCategoryGroup) => (
+              <Card key={subCategoryGroup.subCategoryId} className="shadow-sm" padding="none">
+                <CardHeader title={subCategoryGroup.subCategoryLabel} description={`${subCategoryGroup.subCategoryCode} • ${subCategoryGroup.groups.reduce((count, group) => count + group.items.length, 0)} rows`} />
+                <CardBody className="space-y-4 pb-6">
+                  {subCategoryGroup.groups.map((section) => (
+                    <div key={section.grouping} className="rounded-xl border border-slate-200 bg-slate-50/60">
+                      <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
+                        <div>
+                          <div className="text-sm font-semibold text-slate-800">{section.grouping}</div>
+                          <div className="text-xs text-slate-500">{section.items.length} specification rows</div>
+                        </div>
+                        <div className="text-xs font-mono text-slate-400">Grouped display</div>
                       </div>
-                      <div className="text-xs font-mono text-slate-400">Grouped display</div>
-                    </div>
-                    <Table>
-                      <TableHeader>
-                        <TableRow className="bg-white/80 hover:bg-white">
-                          <TableHead className="w-20">Seq</TableHead>
-                          <TableHead>Parameter</TableHead>
-                          <TableHead>Value</TableHead>
-                          <TableHead>Guidelines</TableHead>
-                          <TableHead className="w-24">Status</TableHead>
-                          <TableHead className="w-40 text-right">Actions</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {section.items.map((spec) => (
-                          <TableRow key={spec.asset_spec_id} className={`cursor-pointer ${spec.asset_spec_id === selectedSpecId ? "bg-blue-50/80" : spec.is_active ? "" : "bg-slate-100/70 text-slate-400"}`} onClick={() => setSelectedSpecId(spec.asset_spec_id)}>
-                            <TableCell className="font-mono text-xs font-semibold text-slate-600">{spec.parameter_seq}</TableCell>
-                            <TableCell>
-                              <div className="space-y-1"><div className="font-medium text-slate-800">{spec.parameter_name}</div><div className="text-xs text-slate-500">{spec.asset_sub_category_code ?? spec.asset_sub_category_name ?? "-"}</div></div>
-                            </TableCell>
-                            <TableCell className="max-w-[280px] whitespace-normal text-slate-700">{spec.parameter_value}</TableCell>
-                            <TableCell className="max-w-[240px] whitespace-normal text-slate-500">{spec.guidelines ?? "-"}</TableCell>
-                            <TableCell><span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${spec.is_active ? "bg-emerald-100 text-emerald-700" : "bg-slate-200 text-slate-600"}`}>{spec.is_active ? "Active" : "Inactive"}</span></TableCell>
-                            <TableCell className="text-right">
-                              <div className="flex items-center justify-end gap-1">
-                                <Button variant="ghost" size="sm" type="button" onClick={(event) => { event.stopPropagation(); setSelectedSpecId(spec.asset_spec_id); }}>View</Button>
-                                <Button variant="ghost" size="sm" type="button" onClick={(event) => { event.stopPropagation(); openEdit(spec); }}>Edit</Button>
-                                <Button variant="ghost" size="sm" type="button" className="text-red-600 hover:text-red-700 hover:bg-red-50" onClick={(event) => { event.stopPropagation(); setSpecToDelete(spec); setDeleteOpen(true); }}>Delete</Button>
-                              </div>
-                            </TableCell>
+                      <Table>
+                        <TableHeader>
+                          <TableRow className="bg-white/80 hover:bg-white">
+                            <TableHead className="w-20">Seq</TableHead>
+                            <TableHead>Parameter</TableHead>
+                            <TableHead>Value</TableHead>
+                            <TableHead>Guidelines</TableHead>
+                            <TableHead className="w-24">Status</TableHead>
+                            <TableHead className="w-40 text-right">Actions</TableHead>
                           </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
+                        </TableHeader>
+                        <TableBody>
+                          {section.items.map((spec) => (
+                            <TableRow key={spec.asset_spec_id} className={`cursor-pointer ${spec.asset_spec_id === selectedSpecId ? "bg-blue-50/80" : spec.is_active ? "" : "bg-slate-100/70 text-slate-400"}`} onClick={() => setSelectedSpecId(spec.asset_spec_id)}>
+                              <TableCell className="font-mono text-xs font-semibold text-slate-600">{spec.parameter_seq}</TableCell>
+                              <TableCell>
+                                <div className="space-y-1"><div className="font-medium text-slate-800">{spec.parameter_name}</div><div className="text-xs text-slate-500">{spec.asset_sub_category_code ?? spec.asset_sub_category_name ?? "-"}</div></div>
+                              </TableCell>
+                              <TableCell className="max-w-[280px] whitespace-normal text-slate-700">{spec.parameter_value}</TableCell>
+                              <TableCell className="max-w-[240px] whitespace-normal text-slate-500">{spec.guidelines ?? "-"}</TableCell>
+                              <TableCell><span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${spec.is_active ? "bg-emerald-100 text-emerald-700" : "bg-slate-200 text-slate-600"}`}>{spec.is_active ? "Active" : "Inactive"}</span></TableCell>
+                              <TableCell className="text-right">
+                                <div className="flex items-center justify-end gap-1">
+                                  <Button variant="ghost" size="sm" type="button" onClick={(event) => { event.stopPropagation(); setSelectedSpecId(spec.asset_spec_id); }}>View</Button>
+                                  <Button variant="ghost" size="sm" type="button" onClick={(event) => { event.stopPropagation(); openEdit(spec); }}>Edit</Button>
+                                  <Button variant="ghost" size="sm" type="button" className="text-red-600 hover:text-red-700 hover:bg-red-50" onClick={(event) => { event.stopPropagation(); setSpecToDelete(spec); setDeleteOpen(true); }}>Delete</Button>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  ))}
+                </CardBody>
+              </Card>
+            ))}
+          </div>
+
+          <div className="col-span-12 xl:col-span-4 space-y-4">
+            <Card className="shadow-sm" padding="none">
+              <CardHeader title="Specification Detail" description="Select a row to view or edit" />
+              <CardBody>
+                {selectedSpec ? (
+                  <div className="space-y-4">
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Selected Spec</div>
+                          <div className="mt-1 text-base font-semibold text-slate-900">{selectedSpec.parameter_name}</div>
+                          <div className="mt-1 text-xs text-slate-500">{selectedSpecSubCategory ? labelForSubCategory(selectedSpecSubCategory) : selectedSpec.asset_sub_category_name ?? selectedSpec.asset_sub_category_code ?? "-"}</div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Seq</div>
+                          <div className="mt-1 text-lg font-semibold text-slate-900">{selectedSpec.parameter_seq}</div>
+                        </div>
+                      </div>
+                      <div className="mt-3">
+                        <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${selectedSpec.is_active ? "bg-emerald-100 text-emerald-700" : "bg-slate-200 text-slate-600"}`}>{selectedSpec.is_active ? "Active" : "Inactive"}</span>
+                      </div>
+                    </div>
+
+                    <div className="space-y-3">
+                      {detailRows.map(([label, value]) => (
+                        <div key={label} className="rounded-lg border border-slate-200 bg-white px-3 py-2.5">
+                          <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">{label}</div>
+                          <div className="mt-1 text-sm text-slate-800 whitespace-pre-wrap">{value}</div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                ))}
+                ) : <div className="py-6 text-center text-sm text-slate-400">No specification selected</div>}
+              </CardBody>
+              {selectedSpec && (
+                <CardFooter className="gap-2 border-t border-slate-100 bg-slate-50/60">
+                  <Button variant="secondary" size="sm" className="flex-1" type="button" onClick={() => openEdit(selectedSpec)}>Edit Spec</Button>
+                  <Button variant="destructive" size="sm" className="flex-1" type="button" onClick={() => { setSpecToDelete(selectedSpec); setDeleteOpen(true); }}>Delete</Button>
+                </CardFooter>
+              )}
+            </Card>
+
+            <Card className="shadow-sm" padding="none">
+              <CardHeader title="Sub-category Summary" />
+              <CardBody className="space-y-2">
+                <div className="rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700">Sub-categories loaded: <span className="font-semibold">{subCategories.length}</span></div>
+                <div className="rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700">Filtered specs: <span className="font-semibold">{filteredSpecs.length}</span></div>
               </CardBody>
             </Card>
-          ))}
-        </div>
-
-        <div className="col-span-12 xl:col-span-4 space-y-4">
-          <Card className="shadow-sm" padding="none">
-            <CardHeader title="Specification Detail" description="Select a row to view or edit" />
-            <CardBody>
-              {selectedSpec ? (
-                <div className="space-y-4">
-                  <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Selected Spec</div>
-                        <div className="mt-1 text-base font-semibold text-slate-900">{selectedSpec.parameter_name}</div>
-                        <div className="mt-1 text-xs text-slate-500">{selectedSpecSubCategory ? labelForSubCategory(selectedSpecSubCategory) : selectedSpec.asset_sub_category_name ?? selectedSpec.asset_sub_category_code ?? "-"}</div>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Seq</div>
-                        <div className="mt-1 text-lg font-semibold text-slate-900">{selectedSpec.parameter_seq}</div>
-                      </div>
-                    </div>
-                    <div className="mt-3">
-                      <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${selectedSpec.is_active ? "bg-emerald-100 text-emerald-700" : "bg-slate-200 text-slate-600"}`}>{selectedSpec.is_active ? "Active" : "Inactive"}</span>
-                    </div>
-                  </div>
-
-                  <div className="space-y-3">
-                    {detailRows.map(([label, value]) => (
-                      <div key={label} className="rounded-lg border border-slate-200 bg-white px-3 py-2.5">
-                        <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">{label}</div>
-                        <div className="mt-1 text-sm text-slate-800 whitespace-pre-wrap">{value}</div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ) : <div className="py-6 text-center text-sm text-slate-400">No specification selected</div>}
-            </CardBody>
-            {selectedSpec && (
-              <CardFooter className="gap-2 border-t border-slate-100 bg-slate-50/60">
-                <Button variant="secondary" size="sm" className="flex-1" type="button" onClick={() => openEdit(selectedSpec)}>Edit Spec</Button>
-                <Button variant="destructive" size="sm" className="flex-1" type="button" onClick={() => { setSpecToDelete(selectedSpec); setDeleteOpen(true); }}>Delete</Button>
-              </CardFooter>
-            )}
-          </Card>
-
-          <Card className="shadow-sm" padding="none">
-            <CardHeader title="Sub-category Summary" />
-            <CardBody className="space-y-2">
-              <div className="rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700">Sub-categories loaded: <span className="font-semibold">{subCategories.length}</span></div>
-              <div className="rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700">Filtered specs: <span className="font-semibold">{filteredSpecs.length}</span></div>
-            </CardBody>
-          </Card>
+          </div>
         </div>
       </div>
 
@@ -476,4 +478,5 @@ export function AssetSpecsPage({ onNavigate }: AssetSpecsPageProps) {
     </div>
   );
 }
+
 

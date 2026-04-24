@@ -5,7 +5,7 @@ import { Input, Textarea, Toggle } from "../components/ui/Input";
 import { Checkbox } from "../components/ui/checkbox";
 import { Modal, ConfirmDialog } from "../components/ui/Modal";
 import { NavPage } from "../components/layout/AppSidebar";
-import { CommonPageHeader } from "../components/layout/CommonPageHeader";
+import { CommonPageHeader, PAGE_CONTENT_CLASS, PAGE_LAYOUT_SHELL_CLASS } from "../components/layout/CommonPageHeader";
 import { buildPageHeaderStats, getPageHeaderConfig } from "../components/layout/pageHeaderConfig";
 import { downloadCsv } from "../components/importExport/csv";
 import {
@@ -291,7 +291,7 @@ export function LookupMasterPage({ onNavigate }: LookupMasterPageProps) {
   };
 
   return (
-    <div className="p-6 space-y-4">
+    <div className={PAGE_LAYOUT_SHELL_CLASS}>
       <CommonPageHeader
         breadcrumbs={header.breadcrumbs}
         sectionLabel={header.sectionLabel}
@@ -315,13 +315,14 @@ export function LookupMasterPage({ onNavigate }: LookupMasterPageProps) {
         ]}
       />
 
-      {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
-      )}
+      <div className={PAGE_CONTENT_CLASS}>
+        {error && (
+          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
+        )}
 
-      <div className="grid grid-cols-12 gap-4">
-        <div className="col-span-8">
-          <Card padding="none">
+        <div className="grid grid-cols-12 gap-4">
+          <div className="col-span-8">
+            <Card padding="none">
             <CardHeader
               title="Lookup Categories"
               description="Browse category keys, descriptions, and active status."
@@ -443,11 +444,11 @@ export function LookupMasterPage({ onNavigate }: LookupMasterPageProps) {
                 </tbody>
               </table>
             </div>
-          </Card>
-        </div>
+            </Card>
+          </div>
 
-        <div className="col-span-4 flex flex-col gap-4">
-          <Card padding="none">
+          <div className="col-span-4 flex flex-col gap-4">
+            <Card padding="none">
             <CardHeader title="Category Detail" />
             <CardBody>
               {selected ? (
@@ -509,7 +510,7 @@ export function LookupMasterPage({ onNavigate }: LookupMasterPageProps) {
                   </div>
                 </>
               ) : (
-                <div className="text-center text-sm text-slate-400 py-6">Select a category to view details</div>
+                <div className="text-center text-sm text-slate-400 py-6">No category selected.</div>
               )}
             </CardBody>
             {selected && (
@@ -537,7 +538,7 @@ export function LookupMasterPage({ onNavigate }: LookupMasterPageProps) {
             )}
           </Card>
 
-          <Card padding="none">
+            <Card padding="none">
             <CardHeader title="Quick Add Category" />
             <CardBody className="px-4 pb-4">
               <form className="space-y-3" onSubmit={(event) => void handleQuickAddSubmit(event)}>
@@ -588,7 +589,8 @@ export function LookupMasterPage({ onNavigate }: LookupMasterPageProps) {
                 </Button>
               </form>
             </CardBody>
-          </Card>
+            </Card>
+          </div>
         </div>
       </div>
 
@@ -687,3 +689,4 @@ export function LookupMasterPage({ onNavigate }: LookupMasterPageProps) {
     </div>
   );
 }
+

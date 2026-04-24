@@ -8,11 +8,11 @@ export function AppHeader() {
   const [search, setSearch] = useState("");
 
   return (
-    <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/95 backdrop-blur">
-      <div className="flex h-16 items-center gap-4 px-5 lg:px-6">
+    <header className="sticky top-0 z-20 h-16 shrink-0 border-b border-slate-200 bg-white/95 backdrop-blur">
+      <div className="flex h-full items-center gap-4 px-5 lg:px-6">
         <div className="hidden min-w-0 lg:block">
           <div className="text-sm font-semibold text-slate-900">Compliance Manager</div>
-          <div className="text-xs text-slate-500">ValidateNow workspace</div>
+          <div className="text-xs text-slate-500">ValidateNow platform</div>
         </div>
 
         <div className="hidden items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs text-slate-600 xl:inline-flex">
