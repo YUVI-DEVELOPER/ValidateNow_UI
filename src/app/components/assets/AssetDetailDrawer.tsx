@@ -49,6 +49,7 @@ import {
 import { AuthoredDocumentPanel } from "./AuthoredDocumentPanel";
 import { AssetDocumentTable } from "./AssetDocumentTable";
 import { AssetDocumentHubPanel } from "./AssetDocumentHubPanel";
+import { AssetAuditReviewPanel } from "./AssetAuditReviewPanel";
 import { AssetRagInsightsPanel } from "./AssetRagInsightsPanel";
 import { AssetFinanceModal } from "./AssetFinanceModal";
 import { AssetLifecycleTimeline } from "./AssetLifecycleTimeline";
@@ -77,6 +78,7 @@ export type AssetDetailTab =
   | "releases"
   | "supplier-evaluation"
   | "document-hub"
+  | "audit-reviews"
   | "rag-insights"
   | "documents";
 
@@ -619,6 +621,9 @@ export function AssetDetailDrawer({
                 </TabsTrigger>
                 <TabsTrigger value="document-hub" className="px-4">
                   Document Hub
+                </TabsTrigger>
+                <TabsTrigger value="audit-reviews" className="px-4">
+                  Audit Trail Reviews
                 </TabsTrigger>
                 <TabsTrigger value="rag-insights" className="px-4">
                   RAG Insights
@@ -1185,6 +1190,16 @@ export function AssetDetailDrawer({
                   enabled={open && activeTab === "document-hub"}
                   asset={asset}
                   sourceSystemOptions={sourceSystemOptions}
+                />
+              </TabsContent>
+
+              <TabsContent value="audit-reviews" className="space-y-4">
+                <AssetAuditReviewPanel
+                  enabled={open && activeTab === "audit-reviews"}
+                  assetId={assetId}
+                  assetName={asset.asset_name}
+                  assetCode={asset.asset_id}
+                  assetOwner={asset.asset_owner}
                 />
               </TabsContent>
 

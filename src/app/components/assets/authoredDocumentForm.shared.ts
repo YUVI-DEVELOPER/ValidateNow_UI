@@ -1,6 +1,7 @@
 import React from "react";
 import axios from "axios";
 
+import { apiBaseUrl } from "../../../services/api";
 import {
   AuthoredDocumentRecord,
   AuthoredDocumentReviewActionRecord,
@@ -468,7 +469,7 @@ export const mapAuthoredDocumentAxiosError = (
   if (!error.response) {
     return {
       message:
-        "Could not reach the authored-document API. Restart the backend on port 8000 and verify CORS allows http://localhost:5173.",
+        `Could not reach the authored-document API at ${apiBaseUrl}. Verify the backend is running and CORS allows this frontend.`,
     };
   }
 

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
+import { apiBaseUrl } from "../../../services/api";
 import {
   CreateDocumentLinkPayload,
   DocumentAiAutofillAnalyzeResult,
@@ -436,7 +437,7 @@ export const mapDocumentLinkAxiosError = (
   if (!error.response) {
     return {
       message:
-        "Could not reach the document-link API. Restart the backend on port 8000 and verify CORS allows http://localhost:5173.",
+        `Could not reach the document-link API at ${apiBaseUrl}. Verify the backend is running and CORS allows this frontend.`,
     };
   }
 

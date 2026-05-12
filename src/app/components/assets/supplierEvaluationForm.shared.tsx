@@ -1,5 +1,7 @@
 import axios from "axios";
 
+import { apiBaseUrl } from "../../../services/api";
+
 export const DEFAULT_SUPPLIER_EVALUATION_ACTOR = "admin";
 
 export interface EvaluationUrsOption {
@@ -196,7 +198,7 @@ export const mapSupplierEvaluationAxiosError = (error: unknown): string => {
   }
 
   if (!error.response) {
-    return "Could not reach the supplier evaluation API. Verify the backend is running on port 8000.";
+    return `Could not reach the supplier evaluation API at ${apiBaseUrl}. Verify the backend is running.`;
   }
 
   const data = error.response.data as { message?: string; detail?: unknown } | undefined;

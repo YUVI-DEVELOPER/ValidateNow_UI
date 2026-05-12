@@ -1,5 +1,6 @@
 import React from "react";
 import axios from "axios";
+import { apiBaseUrl } from "../../../services/api";
 import {
   CreateReleasePayload,
   ReleaseImpactAssessmentRecord,
@@ -261,7 +262,7 @@ export const mapReleaseAxiosError = (
   if (!error.response) {
     return {
       message:
-        "Could not reach the Release API. Restart the backend on port 8000 and verify CORS allows http://localhost:5173.",
+        `Could not reach the Release API at ${apiBaseUrl}. Verify the backend is running and CORS allows this frontend.`,
     };
   }
 

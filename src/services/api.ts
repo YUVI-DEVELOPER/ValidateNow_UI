@@ -1,25 +1,36 @@
 import axios from "axios";
 
-function getDefaultApiBaseUrl(): string {
-  if (typeof window === "undefined" || !window.location.hostname) {
-    return "http://localhost:8000";
-  }
-
-  const protocol = window.location.protocol === "https:" ? "https:" : "http:";
-  return `${protocol}//${window.location.hostname}:8000`;
-}
-
-const DEFAULT_API_BASE_URL = getDefaultApiBaseUrl();
-
 const configuredBaseUrl =
   typeof import.meta.env.VITE_API_BASE_URL === "string"
     ? import.meta.env.VITE_API_BASE_URL.trim()
     : "";
 
-const baseURL = (configuredBaseUrl || DEFAULT_API_BASE_URL).replace(/\/+$/, "");
+const configuredApiHost =
+  typeof import.meta.env.VITE_API_HOST === "string"
+    ? import.meta.env.VITE_API_HOST.trim()
+    : "";
+
+const configuredApiPort =
+  typeof import.meta.env.VITE_API_PORT === "string"
+    ? import.meta.env.VITE_API_PORT.trim().replace(/^:/, "")
+    : "";
+
+function getDefaultApiBaseUrl(): string {
+  const apiPort = configuredApiPort || "8005";
+
+  if (typeof window === "undefined" || !window.location.hostname) {
+    return `http://${configuredApiHost || "localhost"}:${apiPort}`;
+  }
+
+  const protocol = window.location.protocol === "https:" ? "https:" : "http:";
+  const host = configuredApiHost || window.location.hostname;
+  return `${protocol}//${host}:${apiPort}`;
+}
+
+export const apiBaseUrl = (configuredBaseUrl || getDefaultApiBaseUrl()).replace(/\/+$/, "");
 
 export const api = axios.create({
-  baseURL,
+  baseURL: apiBaseUrl,
   headers: {
     "Content-Type": "application/json",
   },
