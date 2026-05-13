@@ -24,6 +24,8 @@ import {
   formatAuditReviewLabel,
   formatAuditReviewNumber,
   formatAuditReviewPeriod,
+  getAuditReviewScoreLabel,
+  getAuditReviewSelectedTypes,
   getAuditReviewJobStatusBadgeClass,
   getAuditReviewLastUpdated,
   getAuditReviewLifecycleStatus,
@@ -97,6 +99,7 @@ export function AuditReviewHeroSummary({
   const lifecycle = getAuditReviewLifecycleStatus(job, report);
   const PrimaryIcon = actionIcons[primaryAction.key];
   const SecondaryIcon = secondaryAction ? actionIcons[secondaryAction.key] : null;
+  const selectedTypes = getAuditReviewSelectedTypes(job);
 
   return (
     <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
@@ -148,16 +151,17 @@ export function AuditReviewHeroSummary({
           </div>
         </div>
 
-        <div className="mt-5 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-7">
+        <div className="mt-5 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-8">
           <HeroMetric label="Latest Review Period" value={formatAuditReviewPeriod(job?.review_start_dt, job?.review_end_dt)} />
           <HeroMetric
             label="Lifecycle Status"
             value={lifecycle === "NO_JOB" ? "Not Started" : formatAuditReviewLabel(lifecycle)}
             badgeClass={getLifecycleBadgeClass(lifecycle, report)}
           />
-          <HeroMetric label="Audit Trail Type" value={formatAuditReviewLabel(job?.audit_trail_type)} />
+          <HeroMetric label="Review Scope" value={formatAuditReviewLabel(job?.review_scope)} />
+          <HeroMetric label="Audit Trails" value={selectedTypes.map(formatAuditReviewLabel).join(", ") || "-"} />
           <HeroMetric label="Records Reviewed" value={formatAuditReviewNumber(job?.record_count)} />
-          <HeroMetric label="Compliance Score" value={job?.overall_score !== undefined && job?.overall_score !== null ? `${job.overall_score}/100` : "-"} />
+          <HeroMetric label={getAuditReviewScoreLabel(job)} value={job?.overall_score !== undefined && job?.overall_score !== null ? `${job.overall_score}/100` : "-"} />
           <HeroMetric
             label="Rating"
             value={formatAuditReviewRating(job?.rating)}

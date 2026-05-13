@@ -75,7 +75,7 @@ const steps: WorkflowStep[] = [
 const getCurrentIndex = (status?: AuditReviewJobStatus | null): number => {
   if (!status) return 0;
   if (status === "CREATED" || status === "EXTRACTING") return 1;
-  if (status === "EXTRACTED" || status === "ANALYZING") return 2;
+  if (status === "EXTRACTED" || status === "PARTIAL_EXTRACTION" || status === "ANALYZING") return 2;
   if (status === "ANALYZED" || status === "REPORT_GENERATING") return 3;
   if (status === "REPORT_DRAFTED") return 4;
   return 1;
@@ -89,7 +89,7 @@ const getFailedIndex = (job: AuditReviewJobDetail): number => {
 };
 
 const hasRecords = (job: AuditReviewJobDetail): boolean =>
-  job.record_count > 0 || ["EXTRACTED", "ANALYZING", "ANALYZED", "REPORT_GENERATING", "REPORT_DRAFTED"].includes(job.status);
+  job.record_count > 0 || ["EXTRACTED", "PARTIAL_EXTRACTION", "ANALYZING", "ANALYZED", "REPORT_GENERATING", "REPORT_DRAFTED"].includes(job.status);
 
 const hasAnalysis = (job: AuditReviewJobDetail): boolean =>
   job.overall_score !== undefined && job.overall_score !== null || job.finding_count > 0 || ["ANALYZED", "REPORT_GENERATING", "REPORT_DRAFTED"].includes(job.status);
@@ -182,7 +182,7 @@ const getStepAction = (
   if (stepKey === "records" && (job.status === "CREATED" || job.status === "FAILED")) {
     return { key: "extract", label: "Extract Records" };
   }
-  if (stepKey === "analysis" && job.status === "EXTRACTED") {
+  if (stepKey === "analysis" && (job.status === "EXTRACTED" || job.status === "PARTIAL_EXTRACTION")) {
     return { key: "analyze", label: "Analyze Job" };
   }
   if (stepKey === "report" && job.status === "ANALYZED") {

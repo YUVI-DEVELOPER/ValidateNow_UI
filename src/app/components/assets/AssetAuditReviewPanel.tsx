@@ -29,6 +29,7 @@ import {
   AuditReviewJobCreatePayload,
   AuditReviewJobDetail,
   AuditReviewJobListItem,
+  AuditReviewMetadata,
   AuditReviewReportDetail,
   AuditReviewReportReviewDecisionPayload,
   AuditReviewReportListItem,
@@ -47,6 +48,7 @@ import {
   getAssetAuditReviewSchedules,
   getAuditReviewFindings,
   getAuditReviewJob,
+  getAuditReviewMetadata,
   getAuditReviewRecords,
   getAuditReviewReport,
   getAuditReviewScheduleRuns,
@@ -60,6 +62,7 @@ import {
 } from "../../../services/audit-review.service";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
+import { Checkbox } from "../ui/checkbox";
 import { Input } from "../ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import {
@@ -115,6 +118,8 @@ interface ScheduleFormState {
   businessStartHour: string;
   businessEndHour: string;
   auditTrailType: string;
+  reviewScope: string;
+  selectedAuditTrailTypes: string[];
   veevaInstanceName: string;
   veevaAppName: string;
   vaultDns: string;
@@ -123,16 +128,52 @@ interface ScheduleFormState {
 
 const IN_PROGRESS_STATUSES = new Set(["EXTRACTING", "ANALYZING", "REPORT_GENERATING"]);
 const ANALYSIS_READY_STATUSES = new Set(["ANALYZED", "REPORT_GENERATING", "REPORT_DRAFTED", "FAILED"]);
-const RECORD_READY_STATUSES = new Set(["EXTRACTED", "ANALYZING", "ANALYZED", "REPORT_GENERATING", "REPORT_DRAFTED", "FAILED"]);
+const RECORD_READY_STATUSES = new Set(["EXTRACTED", "PARTIAL_EXTRACTION", "ANALYZING", "ANALYZED", "REPORT_GENERATING", "REPORT_DRAFTED", "FAILED"]);
 const SCHEDULE_FREQUENCIES: AuditReviewScheduleFrequency[] = ["DAILY", "WEEKLY", "MONTHLY", "QUARTERLY"];
 const DRAWER_DEFAULT_WIDTH = 640;
 const DRAWER_MIN_WIDTH = 560;
 const DRAWER_MAX_WIDTH = 640;
+const FALLBACK_AUDIT_REVIEW_METADATA: AuditReviewMetadata = {
+  supported_audit_trail_types: [
+    { code: "login_audit_trail", label: "Login Audit Trail" },
+    { code: "document_audit_trail", label: "Document Audit Trail" },
+    { code: "object_audit_trail", label: "Object Audit Trail" },
+    { code: "system_audit_trail", label: "System Audit Trail" },
+    { code: "domain_audit_trail", label: "Domain Audit Trail" },
+  ],
+  review_scopes: [
+    { code: "LOGIN_ONLY", label: "Login Only", score_label: "Login Audit Trail Score", audit_trail_types: ["login_audit_trail"] },
+    { code: "DOCUMENT_ONLY", label: "Document Only", score_label: "Document Audit Trail Score", audit_trail_types: ["document_audit_trail"] },
+    { code: "OBJECT_ONLY", label: "Object Only", score_label: "Object Audit Trail Score", audit_trail_types: ["object_audit_trail"] },
+    { code: "SYSTEM_ONLY", label: "System Only", score_label: "System Audit Trail Score", audit_trail_types: ["system_audit_trail"] },
+    { code: "DOMAIN_ONLY", label: "Domain Only", score_label: "Domain Audit Trail Score", audit_trail_types: ["domain_audit_trail"] },
+    { code: "FULL_GXP", label: "Full GxP", score_label: "Full GxP Audit Trail Score", audit_trail_types: ["login_audit_trail", "document_audit_trail", "object_audit_trail", "system_audit_trail", "domain_audit_trail"] },
+    { code: "CUSTOM", label: "Custom", score_label: "Custom Audit Trail Review Score", audit_trail_types: [] },
+  ],
+  full_gxp_audit_trail_types: ["login_audit_trail", "document_audit_trail", "object_audit_trail", "system_audit_trail", "domain_audit_trail"],
+  checkpoint_metadata: [],
+  checkpoint_applicability_matrix: {},
+  parameter_card_metadata: [],
+};
 
 const formatValue = (value?: string | number | null): string => {
   if (value === undefined || value === null || String(value).trim() === "") return "-";
   return String(value);
 };
+
+const isKnownAction = (value?: string | null): value is string => {
+  if (value === undefined || value === null) return false;
+  const normalized = String(value).trim().toUpperCase();
+  return normalized !== "" && normalized !== "UNKNOWN" && normalized !== "N/A" && normalized !== "NA" && normalized !== "-";
+};
+
+const formatRecordAction = (record: AuditTrailRecord): string =>
+  [
+    record.display_action,
+    record.action_type,
+    record.detected_action_category,
+    record.raw_action,
+  ].find(isKnownAction) ?? "UNKNOWN";
 
 const formatNumber = (value?: number | null): string => {
   if (value === undefined || value === null) return "0";
@@ -197,6 +238,7 @@ const formatLabel = (value?: string | null): string => {
 const getStatusBadgeClass = (status?: string | null): string => {
   if (status === "REPORT_DRAFTED") return "border-emerald-200 bg-emerald-50 text-emerald-700";
   if (status === "ANALYZED" || status === "EXTRACTED") return "border-blue-200 bg-blue-50 text-blue-700";
+  if (status === "PARTIAL_EXTRACTION") return "border-amber-200 bg-amber-50 text-amber-700";
   if (status === "EXTRACTING" || status === "ANALYZING" || status === "REPORT_GENERATING") {
     return "border-amber-200 bg-amber-50 text-amber-700";
   }
@@ -222,6 +264,10 @@ const buildDefaultScheduleForm = (schedule?: AuditReviewSchedule | null, actor?:
   businessStartHour: String(schedule?.business_start_hour ?? 9),
   businessEndHour: String(schedule?.business_end_hour ?? 18),
   auditTrailType: schedule?.audit_trail_type ?? "login_audit_trail",
+  reviewScope: schedule?.review_scope ?? "LOGIN_ONLY",
+  selectedAuditTrailTypes: schedule?.selected_audit_trail_types?.length
+    ? schedule.selected_audit_trail_types
+    : [schedule?.audit_trail_type ?? "login_audit_trail"],
   veevaInstanceName: schedule?.veeva_instance_name ?? "Veeva Quality Vault",
   veevaAppName: schedule?.veeva_app_name ?? "QualityDocs",
   vaultDns: schedule?.vault_dns ?? "",
@@ -308,11 +354,13 @@ const buildPrimaryReviewAction = ({
     };
   }
 
-  if (job.status === "EXTRACTED") {
+  if (job.status === "EXTRACTED" || job.status === "PARTIAL_EXTRACTION") {
     return {
       key: "analyze",
       label: "Analyze Job",
-      description: "Records are extracted. Run analysis to generate findings and scores.",
+      description: job.status === "PARTIAL_EXTRACTION"
+        ? "Some audit trail types extracted. Analyze available records with coverage warnings."
+        : "Records are extracted. Run analysis to generate findings and scores.",
       loading: action === "analyze",
     };
   }
@@ -760,6 +808,7 @@ function AuditReviewActions({
 function AuditReviewSchedulePanel({
   schedule,
   form,
+  metadata,
   runs,
   loading,
   saving,
@@ -774,12 +823,13 @@ function AuditReviewSchedulePanel({
 }: {
   schedule: AuditReviewSchedule | null;
   form: ScheduleFormState;
+  metadata: AuditReviewMetadata;
   runs: AuditReviewScheduleRun[];
   loading: boolean;
   saving: boolean;
   running: boolean;
   lastResult: AuditReviewScheduleRunNowResponse | null;
-  onChange: (field: keyof ScheduleFormState, value: string | boolean) => void;
+  onChange: (field: keyof ScheduleFormState, value: string | boolean | string[]) => void;
   onSave: () => void;
   onToggle: (enabled: boolean) => void;
   onRunNow: () => void;
@@ -808,6 +858,7 @@ function AuditReviewSchedulePanel({
         onOpenChange={setDetailsOpen}
         schedule={schedule}
         form={form}
+        metadata={metadata}
         runs={runs}
         loading={loading}
         saving={saving}
@@ -952,6 +1003,7 @@ function AuditReviewScheduleDrawer({
   onOpenChange,
   schedule,
   form,
+  metadata,
   runs,
   loading,
   saving,
@@ -972,6 +1024,7 @@ function AuditReviewScheduleDrawer({
   onOpenChange: (open: boolean) => void;
   schedule: AuditReviewSchedule | null;
   form: ScheduleFormState;
+  metadata: AuditReviewMetadata;
   runs: AuditReviewScheduleRun[];
   loading: boolean;
   saving: boolean;
@@ -981,7 +1034,7 @@ function AuditReviewScheduleDrawer({
   resultReportId: string | null;
   isBusy: boolean;
   scheduleStatus: boolean;
-  onChange: (field: keyof ScheduleFormState, value: string | boolean) => void;
+  onChange: (field: keyof ScheduleFormState, value: string | boolean | string[]) => void;
   onSave: () => void;
   onToggle: (enabled: boolean) => void;
   onRunNow: () => void;
@@ -1118,12 +1171,33 @@ function AuditReviewScheduleDrawer({
 
           <ScheduleDrawerSection title="Veeva Configuration">
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <Input
-                label="Audit trail type"
-                value={form.auditTrailType}
-                onChange={(event) => onChange("auditTrailType", event.target.value)}
-                disabled={actionDisabled}
-              />
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-slate-700">Review scope</label>
+                <Select
+                  value={form.reviewScope}
+                  disabled={actionDisabled}
+                  onValueChange={(value) => {
+                    const scope = metadata.review_scopes.find((item) => item.code === value);
+                    onChange("reviewScope", value);
+                    if (value !== "CUSTOM") {
+                      const nextTypes = scope?.audit_trail_types?.length ? scope.audit_trail_types : ["login_audit_trail"];
+                      onChange("selectedAuditTrailTypes", nextTypes);
+                      onChange("auditTrailType", nextTypes[0]);
+                    }
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {metadata.review_scopes.map((scope) => (
+                      <SelectItem key={scope.code} value={scope.code}>
+                        {scope.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
               <Input
                 label="Vault DNS"
                 value={form.vaultDns}
@@ -1142,6 +1216,37 @@ function AuditReviewScheduleDrawer({
                 onChange={(event) => onChange("veevaAppName", event.target.value)}
                 disabled={actionDisabled}
               />
+              <div className="sm:col-span-2">
+                <p className="mb-2 text-sm font-medium text-slate-700">Audit trail types</p>
+                {form.reviewScope === "CUSTOM" ? (
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    {metadata.supported_audit_trail_types.map((type) => (
+                      <label key={type.code} className="flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700">
+                        <Checkbox
+                          checked={form.selectedAuditTrailTypes.includes(type.code)}
+                          disabled={actionDisabled}
+                          onCheckedChange={(checked) => {
+                            const next = checked === true
+                              ? Array.from(new Set([...form.selectedAuditTrailTypes, type.code]))
+                              : form.selectedAuditTrailTypes.filter((item) => item !== type.code);
+                            onChange("selectedAuditTrailTypes", next);
+                            onChange("auditTrailType", next[0] ?? "login_audit_trail");
+                          }}
+                        />
+                        <span>{type.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {form.selectedAuditTrailTypes.map((type) => (
+                      <Badge key={type} variant="outline" className="border-slate-200 bg-slate-50 text-slate-700">
+                        {metadata.supported_audit_trail_types.find((item) => item.code === type)?.label ?? formatLabel(type)}
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </ScheduleDrawerSection>
 
@@ -1631,7 +1736,7 @@ function AuditReviewRecordsPreview({ records, job }: { records: AuditTrailRecord
                 <TableCell className="font-mono text-xs text-slate-600">{formatValue(record.user_id)}</TableCell>
                 <TableCell>
                   <Badge variant="outline" className="border-slate-200 bg-slate-50 text-slate-700">
-                    {formatValue(record.action_type)}
+                    {formatRecordAction(record)}
                   </Badge>
                 </TableCell>
                 <TableCell className="text-slate-700">{formatValue(record.object_type)}</TableCell>
@@ -1663,6 +1768,7 @@ export function AssetAuditReviewPanel({
   const [records, setRecords] = useState<AuditTrailRecord[]>([]);
   const [reports, setReports] = useState<AuditReviewReportListItem[]>([]);
   const [report, setReport] = useState<AuditReviewReportDetail | null>(null);
+  const [metadata, setMetadata] = useState<AuditReviewMetadata>(FALLBACK_AUDIT_REVIEW_METADATA);
   const [schedules, setSchedules] = useState<AuditReviewSchedule[]>([]);
   const [schedule, setSchedule] = useState<AuditReviewSchedule | null>(null);
   const [scheduleRuns, setScheduleRuns] = useState<AuditReviewScheduleRun[]>([]);
@@ -1728,13 +1834,15 @@ export function AssetAuditReviewPanel({
     setError(null);
 
     try {
-      const [jobListResponse, scheduleList] = await Promise.all([
+      const [jobListResponse, scheduleList, metadataResponse] = await Promise.all([
         listAuditReviewJobs(assetId),
         getAssetAuditReviewSchedules(assetId),
+        getAuditReviewMetadata().catch(() => FALLBACK_AUDIT_REVIEW_METADATA),
       ]);
       const jobList = sortJobs(jobListResponse);
       setJobs(jobList);
       setSchedules(scheduleList);
+      setMetadata(metadataResponse);
 
       const nextSchedule = scheduleList[0] ?? null;
       setSchedule(nextSchedule);
@@ -2022,7 +2130,7 @@ export function AssetAuditReviewPanel({
     }
   };
 
-  const updateScheduleForm = (field: keyof ScheduleFormState, value: string | boolean) => {
+  const updateScheduleForm = (field: keyof ScheduleFormState, value: string | boolean | string[]) => {
     setScheduleForm((previous) => ({ ...previous, [field]: value }));
   };
 
@@ -2031,6 +2139,13 @@ export function AssetAuditReviewPanel({
     const businessStartHour = Number(scheduleForm.businessStartHour);
     const businessEndHour = Number(scheduleForm.businessEndHour);
     const nextRunIso = datetimeLocalToIso(scheduleForm.nextRun);
+    const selectedScope = metadata.review_scopes.find((scope) => scope.code === scheduleForm.reviewScope);
+    const selectedAuditTrailTypes =
+      scheduleForm.reviewScope === "CUSTOM"
+        ? scheduleForm.selectedAuditTrailTypes
+        : selectedScope?.audit_trail_types?.length
+          ? selectedScope.audit_trail_types
+          : [scheduleForm.auditTrailType.trim() || "login_audit_trail"];
 
     if (!Number.isInteger(reviewWindowDays) || reviewWindowDays < 1 || reviewWindowDays > 366) {
       throw new Error("Review window days must be between 1 and 366.");
@@ -2047,7 +2162,7 @@ export function AssetAuditReviewPanel({
     if (!nextRunIso) {
       throw new Error("Next run date is required.");
     }
-    if (!scheduleForm.auditTrailType.trim()) {
+    if (selectedAuditTrailTypes.length === 0) {
       throw new Error("Audit trail type is required.");
     }
     if (!scheduleForm.frequency) {
@@ -2059,7 +2174,9 @@ export function AssetAuditReviewPanel({
 
     return {
       enabled: scheduleForm.enabled,
-      audit_trail_type: scheduleForm.auditTrailType.trim(),
+      audit_trail_type: selectedAuditTrailTypes[0],
+      review_scope: scheduleForm.reviewScope,
+      selected_audit_trail_types: selectedAuditTrailTypes,
       veeva_instance_name: scheduleForm.veevaInstanceName.trim() || null,
       veeva_app_name: scheduleForm.veevaAppName.trim() || null,
       vault_dns: scheduleForm.vaultDns.trim() || null,
@@ -2184,6 +2301,7 @@ export function AssetAuditReviewPanel({
             <AuditReviewSchedulePanel
               schedule={schedule}
               form={scheduleForm}
+              metadata={metadata}
               runs={scheduleRuns}
               loading={refreshing && scheduleRuns.length === 0}
               saving={savingSchedule}
@@ -2217,6 +2335,7 @@ export function AssetAuditReviewPanel({
               reports={reports}
               findings={findings}
               scores={scores}
+              records={records}
               scheduleRuns={scheduleRuns}
               severityCounts={severityCounts}
               totalFindings={totalFindings}

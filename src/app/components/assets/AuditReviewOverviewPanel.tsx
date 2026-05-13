@@ -6,6 +6,7 @@ import {
   AuditReviewJobDetail,
   AuditReviewReportDetail,
   AuditReviewScore,
+  AuditTrailRecord,
 } from "../../../services/audit-review.service";
 import { Badge } from "../ui/badge";
 import {
@@ -25,12 +26,16 @@ import {
   AuditReviewUiAction,
   AuditReviewUiActionKey,
 } from "./auditReviewUi.shared";
+import { AuditReviewChecklistMatrix } from "./AuditReviewChecklistMatrix";
+import { AuditReviewCoverageTable } from "./AuditReviewCoverageTable";
+import { AuditReviewRecordsTable } from "./AuditReviewRecordsTable";
 
 interface AuditReviewOverviewPanelProps {
   job: AuditReviewJobDetail | null;
   report: AuditReviewReportDetail | null;
   findings: AuditReviewFinding[];
   scores: AuditReviewScore[];
+  records: AuditTrailRecord[];
   severityCounts: {
     high: number;
     medium: number;
@@ -63,6 +68,7 @@ export function AuditReviewOverviewPanel({
   report,
   findings,
   scores,
+  records,
   severityCounts,
   totalFindings,
   nextAction,
@@ -153,7 +159,8 @@ export function AuditReviewOverviewPanel({
               </div>
               <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
                 <InfoTile label="Review Period" value={formatAuditReviewPeriod(job.review_start_dt, job.review_end_dt)} />
-                <InfoTile label="Audit Trail" value={formatAuditReviewLabel(job.audit_trail_type)} />
+                <InfoTile label="Review Scope" value={formatAuditReviewLabel(job.review_scope)} />
+                <InfoTile label="Audit Trails" value={(job.selected_audit_trail_types || [job.audit_trail_type]).map(formatAuditReviewLabel).join(", ")} />
                 <InfoTile label="Records Reviewed" value={formatAuditReviewNumber(job.record_count)} />
                 <InfoTile label="Created" value={formatAuditReviewDateTime(job.created_dt)} />
               </div>
@@ -164,6 +171,10 @@ export function AuditReviewOverviewPanel({
                 </div>
               ) : null}
             </section>
+
+            <AuditReviewCoverageTable job={job} />
+            <AuditReviewChecklistMatrix job={job} scores={scores} />
+            <AuditReviewRecordsTable job={job} records={records.slice(0, 12)} />
 
             <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm" aria-label="Top findings snapshot">
               <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
@@ -243,4 +254,3 @@ export function AuditReviewOverviewPanel({
     </div>
   );
 }
-

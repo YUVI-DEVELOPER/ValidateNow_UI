@@ -9,6 +9,7 @@ import {
 import { Badge } from "../ui/badge";
 import { Progress } from "../ui/progress";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table";
+import { getAuditReviewScoreLabel } from "./auditReviewUi.shared";
 
 interface AuditReviewScoreCardProps {
   job: AuditReviewJobDetail | null;
@@ -82,7 +83,7 @@ export function AuditReviewScoreCard({
       <div className="border-b border-slate-200 px-4 py-4">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <h3 className="text-sm font-semibold text-slate-900">Score Summary</h3>
+            <h3 className="text-sm font-semibold text-slate-900">{getAuditReviewScoreLabel(job)}</h3>
             <p className="mt-1 text-xs text-slate-500">Overall score, rating, severity mix, and check-level penalty view.</p>
           </div>
           <Badge variant="outline" className={getAuditReviewRatingBadgeClass(job?.rating)}>

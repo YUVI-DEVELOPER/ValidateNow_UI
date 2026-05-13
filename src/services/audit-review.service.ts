@@ -13,6 +13,7 @@ export type AuditReviewJobStatus =
   | "CREATED"
   | "EXTRACTING"
   | "EXTRACTED"
+  | "PARTIAL_EXTRACTION"
   | "ANALYZING"
   | "ANALYZED"
   | "REPORT_GENERATING"
@@ -35,6 +36,55 @@ export type AuditReviewNotificationStatus = "PENDING" | "READY" | "SENT" | "FAIL
 export type AuditReviewNotificationChannel = "IN_APP" | "EMAIL" | "BOTH";
 export type AuditReviewNotificationPriority = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
 export type AuditReviewAiSummaryStatus = "NOT_REQUESTED" | "GENERATING" | "GENERATED" | "FAILED";
+export type AuditReviewScope =
+  | "LOGIN_ONLY"
+  | "DOCUMENT_ONLY"
+  | "OBJECT_ONLY"
+  | "SYSTEM_ONLY"
+  | "DOMAIN_ONLY"
+  | "FULL_GXP"
+  | "CUSTOM"
+  | string;
+
+export interface AuditReviewAuditTypeMetadata {
+  code: string;
+  label: string;
+  description?: string;
+  expected_fields?: string[];
+}
+
+export interface AuditReviewScopeMetadata {
+  code: AuditReviewScope;
+  label: string;
+  score_label: string;
+  audit_trail_types: string[];
+}
+
+export interface AuditReviewCheckpointMetadata {
+  check_code: string;
+  checkpoint_code: string;
+  parameter_code: string;
+  label: string;
+  description?: string;
+  sort_order: number;
+}
+
+export interface AuditReviewParameterCardMetadata {
+  parameter_code: string;
+  label: string;
+  description?: string;
+  check_codes: string[];
+  sort_order: number;
+}
+
+export interface AuditReviewMetadata {
+  supported_audit_trail_types: AuditReviewAuditTypeMetadata[];
+  review_scopes: AuditReviewScopeMetadata[];
+  full_gxp_audit_trail_types: string[];
+  checkpoint_metadata: AuditReviewCheckpointMetadata[];
+  checkpoint_applicability_matrix: Record<string, string[]>;
+  parameter_card_metadata: AuditReviewParameterCardMetadata[];
+}
 
 export interface AuditReviewJobListItem {
   job_id: string;
@@ -42,6 +92,8 @@ export interface AuditReviewJobListItem {
   review_start_dt: string;
   review_end_dt: string;
   audit_trail_type: string;
+  review_scope?: AuditReviewScope;
+  selected_audit_trail_types?: string[];
   status: AuditReviewJobStatus;
   record_count: number;
   created_dt: string;
@@ -75,12 +127,19 @@ export interface AuditReviewJobDetail extends AuditReviewJobListItem {
   latest_report_submitted_dt?: string | null;
   latest_report_reviewed_by?: string | null;
   latest_report_reviewed_dt?: string | null;
+  score_label?: string | null;
+  coverage_by_audit_type?: Record<string, unknown>;
+  audit_type_scores?: Array<Record<string, unknown>>;
+  checkpoint_scores?: Array<Record<string, unknown>>;
+  checklist_applicability?: Array<Record<string, unknown>>;
 }
 
 export interface AuditReviewJobCreatePayload {
   review_start_dt: string;
   review_end_dt: string;
-  audit_trail_type: string;
+  audit_trail_type?: string;
+  review_scope?: AuditReviewScope;
+  selected_audit_trail_types?: string[];
   veeva_instance_name?: string | null;
   veeva_app_name?: string | null;
   vault_dns?: string | null;
@@ -95,6 +154,8 @@ export interface AuditReviewSchedule {
   veeva_instance_name?: string | null;
   veeva_app_name?: string | null;
   audit_trail_type: string;
+  review_scope?: AuditReviewScope;
+  selected_audit_trail_types?: string[];
   frequency: AuditReviewScheduleFrequency;
   review_window_days?: number | null;
   next_run_dt: string;
@@ -112,6 +173,8 @@ export interface AuditReviewSchedule {
 export interface AuditReviewSchedulePayload {
   enabled?: boolean;
   audit_trail_type?: string;
+  review_scope?: AuditReviewScope;
+  selected_audit_trail_types?: string[];
   veeva_instance_name?: string | null;
   veeva_app_name?: string | null;
   vault_dns?: string | null;
@@ -157,6 +220,8 @@ export interface AuditReviewJobCreateResponse {
   job_id: string;
   asset_id: string;
   status: AuditReviewJobStatus;
+  review_scope?: AuditReviewScope;
+  selected_audit_trail_types?: string[];
 }
 
 export interface AuditReviewExtractResponse {
@@ -165,6 +230,7 @@ export interface AuditReviewExtractResponse {
   status: AuditReviewJobStatus;
   record_count: number;
   extraction_summary_json: Record<string, unknown>;
+  coverage_by_audit_type?: Record<string, unknown>;
 }
 
 export interface AuditReviewAnalyzePayload {
@@ -179,10 +245,14 @@ export interface AuditReviewAnalyzeResponse {
   status: AuditReviewJobStatus;
   overall_score: number;
   rating: AuditReviewRating;
+  score_label?: string | null;
   total_records_analyzed: number;
   total_findings: number;
   finding_counts_by_severity: Record<string, number>;
   score_breakdown: Array<Record<string, unknown>>;
+  audit_type_scores?: Array<Record<string, unknown>>;
+  checkpoint_scores?: Array<Record<string, unknown>>;
+  checklist_applicability?: Array<Record<string, unknown>>;
 }
 
 export interface AuditReviewFinding {
@@ -192,6 +262,9 @@ export interface AuditReviewFinding {
   primary_record_id?: string | null;
   check_code: string;
   check_name: string;
+  audit_trail_type?: string | null;
+  parameter_code?: string | null;
+  checkpoint_code?: string | null;
   finding_type?: string | null;
   severity?: AuditReviewSeverity | null;
   status: string;
@@ -211,6 +284,13 @@ export interface AuditReviewScore {
   asset_id: string;
   check_code: string;
   check_name: string;
+  score_scope: string;
+  audit_trail_type: string;
+  score_label?: string | null;
+  applicability?: string | null;
+  evaluated_record_count: number;
+  skipped_record_count: number;
+  no_data_count: number;
   overall_score?: number | null;
   rating?: AuditReviewRating | null;
   score_status: string;
@@ -230,22 +310,36 @@ export interface AuditTrailRecord {
   job_id: string;
   asset_id: string;
   source_record_key?: string | null;
+  audit_trail_type: string;
   event_timestamp?: string | null;
   event_timezone?: string | null;
   user_id?: string | null;
   user_name?: string | null;
+  raw_action?: string | null;
   action_type?: string | null;
+  detected_action_category?: string | null;
+  display_action?: string | null;
   object_type?: string | null;
   object_name?: string | null;
   object_id?: string | null;
   field_name?: string | null;
   old_value?: string | null;
   new_value?: string | null;
+  event_status?: string | null;
+  reason?: string | null;
+  change_control_id?: string | null;
+  ip_address?: string | null;
+  session_id?: string | null;
+  auth_method?: string | null;
+  failure_reason?: string | null;
   is_delete_action: boolean;
   is_permission_change: boolean;
+  is_export_action: boolean;
+  is_configuration_change: boolean;
   record_quality_status: string;
   created_dt: string;
   raw_payload_json?: Record<string, unknown> | null;
+  normalized_extra_json?: Record<string, unknown> | null;
 }
 
 export interface AuditReviewReportGenerateResponse {
@@ -433,6 +527,11 @@ export const listAuditReviewJobs = async (assetId: string): Promise<AuditReviewJ
   return parseListResponse(response.data);
 };
 
+export const getAuditReviewMetadata = async (): Promise<AuditReviewMetadata> => {
+  const response = await api.get<SingleResponse<AuditReviewMetadata>>("/api/audit-reviews/metadata");
+  return parseSingleResponse(response.data);
+};
+
 export const getAssetAuditReviewSchedules = async (assetId: string): Promise<AuditReviewSchedule[]> => {
   const response = await api.get<ListResponse<AuditReviewSchedule>>(
     `/asset/${assetId}/audit-review-schedules`,
@@ -530,10 +629,13 @@ export const generateAuditReviewReport = async (
   return parseSingleResponse(response.data);
 };
 
-export const getAuditReviewFindings = async (jobId: string): Promise<AuditReviewFinding[]> => {
+export const getAuditReviewFindings = async (
+  jobId: string,
+  filters: { audit_trail_type?: string; check_code?: string; severity?: string; limit?: number } = {},
+): Promise<AuditReviewFinding[]> => {
   const response = await api.get<ListResponse<AuditReviewFinding>>(
     `/audit-review-jobs/${jobId}/findings`,
-    { params: { limit: 500 } },
+    { params: { limit: filters.limit ?? 500, ...filters } },
   );
   return parseListResponse(response.data);
 };
@@ -546,10 +648,11 @@ export const getAuditReviewScores = async (jobId: string): Promise<AuditReviewSc
 export const getAuditReviewRecords = async (
   jobId: string,
   includeRaw = false,
+  auditTrailType?: string,
 ): Promise<AuditTrailRecord[]> => {
   const response = await api.get<ListResponse<AuditTrailRecord>>(
     `/audit-review-jobs/${jobId}/records`,
-    { params: { include_raw: includeRaw } },
+    { params: { include_raw: includeRaw, audit_trail_type: auditTrailType } },
   );
   return parseListResponse(response.data);
 };

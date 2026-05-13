@@ -1,8 +1,14 @@
 import React, { FormEvent, useEffect, useMemo, useState } from "react";
-import { CalendarDays, ClipboardCheck, Loader2, ShieldCheck } from "lucide-react";
+import { CalendarDays, ListChecks, Loader2, ShieldCheck } from "lucide-react";
 
-import { AuditReviewJobCreatePayload } from "../../../services/audit-review.service";
+import {
+  AuditReviewJobCreatePayload,
+  AuditReviewMetadata,
+  AuditReviewScope,
+  getAuditReviewMetadata,
+} from "../../../services/audit-review.service";
 import { Button } from "../ui/button";
+import { Checkbox } from "../ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -12,6 +18,7 @@ import {
   DialogTitle,
 } from "../ui/dialog";
 import { Input } from "../ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 
 interface AuditReviewRunDialogProps {
   open: boolean;
@@ -26,11 +33,35 @@ interface AuditReviewRunDialogProps {
 interface FormState {
   reviewStart: string;
   reviewEnd: string;
-  auditTrailType: string;
+  reviewScope: AuditReviewScope;
+  selectedAuditTrailTypes: string[];
   veevaInstanceName: string;
   veevaAppName: string;
   requestedBy: string;
 }
+
+const fallbackMetadata: AuditReviewMetadata = {
+  supported_audit_trail_types: [
+    { code: "login_audit_trail", label: "Login Audit Trail" },
+    { code: "document_audit_trail", label: "Document Audit Trail" },
+    { code: "object_audit_trail", label: "Object Audit Trail" },
+    { code: "system_audit_trail", label: "System Audit Trail" },
+    { code: "domain_audit_trail", label: "Domain Audit Trail" },
+  ],
+  review_scopes: [
+    { code: "LOGIN_ONLY", label: "Login Only", score_label: "Login Audit Trail Score", audit_trail_types: ["login_audit_trail"] },
+    { code: "DOCUMENT_ONLY", label: "Document Only", score_label: "Document Audit Trail Score", audit_trail_types: ["document_audit_trail"] },
+    { code: "OBJECT_ONLY", label: "Object Only", score_label: "Object Audit Trail Score", audit_trail_types: ["object_audit_trail"] },
+    { code: "SYSTEM_ONLY", label: "System Only", score_label: "System Audit Trail Score", audit_trail_types: ["system_audit_trail"] },
+    { code: "DOMAIN_ONLY", label: "Domain Only", score_label: "Domain Audit Trail Score", audit_trail_types: ["domain_audit_trail"] },
+    { code: "FULL_GXP", label: "Full GxP", score_label: "Full GxP Audit Trail Score", audit_trail_types: ["login_audit_trail", "document_audit_trail", "object_audit_trail", "system_audit_trail", "domain_audit_trail"] },
+    { code: "CUSTOM", label: "Custom", score_label: "Custom Audit Trail Review Score", audit_trail_types: [] },
+  ],
+  full_gxp_audit_trail_types: ["login_audit_trail", "document_audit_trail", "object_audit_trail", "system_audit_trail", "domain_audit_trail"],
+  checkpoint_metadata: [],
+  checkpoint_applicability_matrix: {},
+  parameter_card_metadata: [],
+};
 
 const toDatetimeLocalValue = (date: Date): string => {
   const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
@@ -64,7 +95,8 @@ const buildDefaultState = (requestedBy?: string | null): FormState => {
   return {
     reviewStart: reviewWindow.reviewStart,
     reviewEnd: reviewWindow.reviewEnd,
-    auditTrailType: "login_audit_trail",
+    reviewScope: "LOGIN_ONLY",
+    selectedAuditTrailTypes: ["login_audit_trail"],
     veevaInstanceName: "Veeva Quality Vault",
     veevaAppName: "QualityDocs",
     requestedBy: requestedBy?.trim() || "",
@@ -85,6 +117,7 @@ export function AuditReviewRunDialog({
   const defaultState = useMemo(() => buildDefaultState(defaultRequestedBy), [defaultRequestedBy]);
   const [form, setForm] = useState<FormState>(defaultState);
   const [errors, setErrors] = useState<Partial<Record<keyof FormState, string>>>({});
+  const [metadata, setMetadata] = useState<AuditReviewMetadata>(fallbackMetadata);
 
   useEffect(() => {
     if (!open) return;
@@ -92,9 +125,60 @@ export function AuditReviewRunDialog({
     setErrors({});
   }, [defaultRequestedBy, open]);
 
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    void getAuditReviewMetadata()
+      .then((nextMetadata) => {
+        if (!cancelled) setMetadata(nextMetadata);
+      })
+      .catch(() => {
+        if (!cancelled) setMetadata(fallbackMetadata);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open]);
+
   const updateField = (field: keyof FormState, value: string) => {
     setForm((previous) => ({ ...previous, [field]: value }));
     setErrors((previous) => ({ ...previous, [field]: undefined }));
+  };
+
+  const selectedScope = metadata.review_scopes.find((scope) => scope.code === form.reviewScope);
+  const fixedScopeTypes = selectedScope?.audit_trail_types ?? [];
+  const effectiveSelectedTypes =
+    form.reviewScope === "CUSTOM"
+      ? form.selectedAuditTrailTypes
+      : fixedScopeTypes.length
+        ? fixedScopeTypes
+        : ["login_audit_trail"];
+
+  const updateScope = (value: AuditReviewScope) => {
+    const scope = metadata.review_scopes.find((item) => item.code === value);
+    setForm((previous) => ({
+      ...previous,
+      reviewScope: value,
+      selectedAuditTrailTypes:
+        value === "CUSTOM"
+          ? previous.selectedAuditTrailTypes.length
+            ? previous.selectedAuditTrailTypes
+            : ["login_audit_trail"]
+          : scope?.audit_trail_types.length
+            ? scope.audit_trail_types
+            : ["login_audit_trail"],
+    }));
+    setErrors((previous) => ({ ...previous, reviewScope: undefined, selectedAuditTrailTypes: undefined }));
+  };
+
+  const toggleAuditType = (auditTrailType: string, checked: boolean) => {
+    setForm((previous) => {
+      const nextTypes = checked
+        ? Array.from(new Set([...previous.selectedAuditTrailTypes, auditTrailType]))
+        : previous.selectedAuditTrailTypes.filter((item) => item !== auditTrailType);
+      return { ...previous, selectedAuditTrailTypes: nextTypes };
+    });
+    setErrors((previous) => ({ ...previous, selectedAuditTrailTypes: undefined }));
   };
 
   const validate = (): boolean => {
@@ -104,7 +188,8 @@ export function AuditReviewRunDialog({
 
     if (!form.reviewStart) nextErrors.reviewStart = "Review start date is required.";
     if (!form.reviewEnd) nextErrors.reviewEnd = "Review end date is required.";
-    if (!form.auditTrailType.trim()) nextErrors.auditTrailType = "Audit trail type is required.";
+    if (!form.reviewScope.trim()) nextErrors.reviewScope = "Review scope is required.";
+    if (effectiveSelectedTypes.length === 0) nextErrors.selectedAuditTrailTypes = "Select at least one audit trail type.";
     if (startDate && Number.isNaN(startDate.getTime())) nextErrors.reviewStart = "Enter a valid start date.";
     if (endDate && Number.isNaN(endDate.getTime())) nextErrors.reviewEnd = "Enter a valid end date.";
     if (startDate && endDate && endDate <= startDate) {
@@ -122,7 +207,9 @@ export function AuditReviewRunDialog({
     await onCreate({
       review_start_dt: toUtcIso(form.reviewStart),
       review_end_dt: toUtcIso(form.reviewEnd),
-      audit_trail_type: form.auditTrailType.trim(),
+      audit_trail_type: effectiveSelectedTypes[0] ?? "login_audit_trail",
+      review_scope: form.reviewScope,
+      selected_audit_trail_types: effectiveSelectedTypes,
       veeva_instance_name: form.veevaInstanceName.trim() || null,
       veeva_app_name: form.veevaAppName.trim() || null,
       requested_by: form.requestedBy.trim() || null,
@@ -192,16 +279,20 @@ export function AuditReviewRunDialog({
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div>
-                <Input
-                  label="Audit trail type"
-                  value={form.auditTrailType}
-                  onChange={(event) => updateField("auditTrailType", event.target.value)}
-                  iconLeft={<ClipboardCheck className="h-4 w-4" />}
-                  aria-invalid={Boolean(errors.auditTrailType)}
-                  disabled={creating}
-                />
-                <p className="mt-1 text-xs text-slate-500">Default: login audit trail.</p>
-                {errors.auditTrailType ? <p className="mt-1 text-xs text-red-600">{errors.auditTrailType}</p> : null}
+                <label className="mb-1.5 block text-sm font-medium text-slate-700">Review scope</label>
+                <Select value={form.reviewScope} onValueChange={(value) => updateScope(value as AuditReviewScope)} disabled={creating}>
+                  <SelectTrigger aria-invalid={Boolean(errors.reviewScope)}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {metadata.review_scopes.map((scope) => (
+                      <SelectItem key={scope.code} value={scope.code}>
+                        {scope.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {errors.reviewScope ? <p className="mt-1 text-xs text-red-600">{errors.reviewScope}</p> : null}
               </div>
               <Input
                 label="Requested by"
@@ -210,6 +301,36 @@ export function AuditReviewRunDialog({
                 placeholder="Compliance reviewer"
                 disabled={creating}
               />
+            </div>
+
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+              <div className="flex items-center gap-2">
+                <ListChecks className="h-4 w-4 text-slate-500" />
+                <p className="text-sm font-medium text-slate-800">Selected audit trail types</p>
+              </div>
+              {form.reviewScope === "CUSTOM" ? (
+                <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  {metadata.supported_audit_trail_types.map((type) => (
+                    <label key={type.code} className="flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700">
+                      <Checkbox
+                        checked={form.selectedAuditTrailTypes.includes(type.code)}
+                        onCheckedChange={(checked) => toggleAuditType(type.code, checked === true)}
+                        disabled={creating}
+                      />
+                      <span>{type.label}</span>
+                    </label>
+                  ))}
+                </div>
+              ) : (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {effectiveSelectedTypes.map((type) => (
+                    <span key={type} className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-700">
+                      {metadata.supported_audit_trail_types.find((item) => item.code === type)?.label ?? type}
+                    </span>
+                  ))}
+                </div>
+              )}
+              {errors.selectedAuditTrailTypes ? <p className="mt-2 text-xs text-red-600">{errors.selectedAuditTrailTypes}</p> : null}
             </div>
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">

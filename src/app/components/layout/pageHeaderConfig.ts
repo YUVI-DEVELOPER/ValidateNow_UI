@@ -175,6 +175,14 @@ export const PAGE_HEADER_CONFIG: Record<NavPage, PageHeaderPreset> = {
       { key: "inactive", label: "Inactive Visible", hint: "Current filter state", tone: "violet" },
     ],
   },
+  "periodic-review": {
+    page: "periodic-review",
+    breadcrumbs: withRoot("Compliance", "Periodic Review"),
+    sectionLabel: "Compliance",
+    title: "Periodic Review",
+    subtitle: "Run manual audit trail reviews for validated software assets.",
+    searchEnabled: false,
+  },
   "document-portal": {
     page: "document-portal",
     breadcrumbs: withRoot("Asset Management", "Document Portal"),

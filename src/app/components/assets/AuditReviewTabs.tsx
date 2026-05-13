@@ -11,6 +11,7 @@ import {
   AuditReviewReportSubmitReviewPayload,
   AuditReviewScheduleRun,
   AuditReviewScore,
+  AuditTrailRecord,
 } from "../../../services/audit-review.service";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import { AuditReviewAiSummaryPanel } from "./AuditReviewAiSummaryPanel";
@@ -19,6 +20,7 @@ import { AuditReviewFindingsTable } from "./AuditReviewFindingsTable";
 import { AuditReviewHistoryPanel } from "./AuditReviewHistoryPanel";
 import { AuditReviewNotificationsPanel } from "./AuditReviewNotificationsPanel";
 import { AuditReviewOverviewPanel } from "./AuditReviewOverviewPanel";
+import { AuditReviewRecordsTable } from "./AuditReviewRecordsTable";
 import { AuditReviewReportView } from "./AuditReviewReportView";
 import {
   AuditReviewUiAction,
@@ -27,6 +29,7 @@ import {
 
 export type AuditReviewWorkspaceTab =
   | "overview"
+  | "records"
   | "findings"
   | "report"
   | "approval"
@@ -44,6 +47,7 @@ interface AuditReviewTabsProps {
   reports: AuditReviewReportListItem[];
   findings: AuditReviewFinding[];
   scores: AuditReviewScore[];
+  records: AuditTrailRecord[];
   scheduleRuns: AuditReviewScheduleRun[];
   severityCounts: {
     high: number;
@@ -85,6 +89,7 @@ export function AuditReviewTabs({
   reports,
   findings,
   scores,
+  records,
   scheduleRuns,
   severityCounts,
   totalFindings,
@@ -113,6 +118,10 @@ export function AuditReviewTabs({
             <TabsTrigger value="findings" className="rounded-md px-3 py-2 text-xs">
               <ListChecks className="h-4 w-4" />
               Findings
+            </TabsTrigger>
+            <TabsTrigger value="records" className="rounded-md px-3 py-2 text-xs">
+              <Rows3 className="h-4 w-4" />
+              Records
             </TabsTrigger>
             <TabsTrigger value="report" className="rounded-md px-3 py-2 text-xs">
               <FileText className="h-4 w-4" />
@@ -143,11 +152,23 @@ export function AuditReviewTabs({
             report={report}
             findings={findings}
             scores={scores}
+            records={records}
             severityCounts={severityCounts}
             totalFindings={totalFindings}
             nextAction={nextAction}
             onAction={onAction}
           />
+        </TabsContent>
+
+        <TabsContent value="records" className="mt-0">
+          {job ? (
+            <AuditReviewRecordsTable job={job} records={records} />
+          ) : (
+            <EmptyPanel
+              title="Records are not available yet"
+              description="Create and extract an audit review job before browsing records."
+            />
+          )}
         </TabsContent>
 
         <TabsContent value="findings" className="mt-0">
@@ -224,4 +245,3 @@ export function AuditReviewTabs({
     </section>
   );
 }
-

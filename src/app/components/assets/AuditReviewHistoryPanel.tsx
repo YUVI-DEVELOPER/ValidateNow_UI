@@ -14,6 +14,7 @@ import {
   formatAuditReviewLabel,
   formatAuditReviewNumber,
   formatAuditReviewPeriod,
+  getAuditReviewSelectedTypes,
   getAuditReviewJobStatusBadgeClass,
   getAuditReviewReportStatusBadgeClass,
   shortAuditReviewIdentifier,
@@ -65,7 +66,8 @@ export function AuditReviewHistoryPanel({
             <TableRow className="bg-white">
               <TableHead className="font-semibold">Status</TableHead>
               <TableHead className="font-semibold">Review Period</TableHead>
-              <TableHead className="font-semibold">Audit Trail</TableHead>
+              <TableHead className="font-semibold">Scope</TableHead>
+              <TableHead className="font-semibold">Audit Trails</TableHead>
               <TableHead className="font-semibold">Records</TableHead>
               <TableHead className="font-semibold">Created</TableHead>
               <TableHead className="font-semibold">Action</TableHead>
@@ -74,7 +76,7 @@ export function AuditReviewHistoryPanel({
           <TableBody>
             {jobs.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="py-8 text-center text-slate-500">
+                  <TableCell colSpan={7} className="py-8 text-center text-slate-500">
                   No audit review jobs have been created for this asset.
                 </TableCell>
               </TableRow>
@@ -89,7 +91,10 @@ export function AuditReviewHistoryPanel({
                       </Badge>
                     </TableCell>
                     <TableCell className="text-slate-700">{formatAuditReviewPeriod(job.review_start_dt, job.review_end_dt)}</TableCell>
-                    <TableCell className="text-slate-700">{formatAuditReviewLabel(job.audit_trail_type)}</TableCell>
+                    <TableCell className="text-slate-700">{formatAuditReviewLabel(job.review_scope)}</TableCell>
+                    <TableCell className="max-w-64 whitespace-normal text-slate-700">
+                      {getAuditReviewSelectedTypes(job).map(formatAuditReviewLabel).join(", ")}
+                    </TableCell>
                     <TableCell className="text-slate-700">{formatAuditReviewNumber(job.record_count)}</TableCell>
                     <TableCell className="text-slate-600">{formatAuditReviewDateTime(job.created_dt)}</TableCell>
                     <TableCell>
@@ -202,4 +207,3 @@ export function AuditReviewHistoryPanel({
     </div>
   );
 }
-

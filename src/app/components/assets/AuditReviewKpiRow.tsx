@@ -9,6 +9,7 @@ import { Badge } from "../ui/badge";
 import {
   formatAuditReviewLabel,
   formatAuditReviewNumber,
+  getAuditReviewScoreLabel,
   getAuditReviewReportStatusBadgeClass,
 } from "./auditReviewUi.shared";
 import {
@@ -73,9 +74,9 @@ export function AuditReviewKpiRow({
   return (
     <section className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6" aria-label="Audit review key metrics">
       <KpiCard
-        label="Compliance Score"
+        label={getAuditReviewScoreLabel(job)}
         value={job?.overall_score !== undefined && job?.overall_score !== null ? `${job.overall_score}` : "-"}
-        helper="Overall audit review score"
+        helper="Scoped audit review score"
         icon={<Gauge className="h-4 w-4" />}
       />
       <KpiCard
@@ -119,4 +120,3 @@ export function AuditReviewKpiRow({
     </section>
   );
 }
-

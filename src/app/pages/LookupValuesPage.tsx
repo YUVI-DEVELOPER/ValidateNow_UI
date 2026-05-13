@@ -37,7 +37,40 @@ const EMPTY_VALUE_FORM: ValueFormState = {
   active: true,
 };
 
+const normalizeLookupCodeInput = (value: string): string =>
+  value
+    .trimStart()
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, "_")
+    .replace(/_+/g, "_")
+    .slice(0, 50);
+
+const finalizeLookupCode = (value: string): string => normalizeLookupCodeInput(value).replace(/^_+|_+$/g, "");
+
 const getErrorMessage = (error: unknown): string => {
+  if (typeof error === "object" && error !== null && "response" in error) {
+    const response = (error as { response?: { data?: { detail?: unknown; message?: string } } }).response;
+    const detail = response?.data?.detail;
+    if (typeof detail === "string") {
+      return detail;
+    }
+    if (Array.isArray(detail)) {
+      return detail
+        .map((item) => {
+          if (typeof item === "string") return item;
+          if (typeof item === "object" && item !== null && "msg" in item) {
+            return String((item as { msg?: unknown }).msg);
+          }
+          return "";
+        })
+        .filter(Boolean)
+        .join(" ");
+    }
+    if (response?.data?.message) {
+      return response.data.message;
+    }
+  }
+
   if (error instanceof Error) {
     return error.message;
   }
@@ -183,7 +216,7 @@ export function LookupValuesPage({ onNavigate }: LookupValuesPageProps) {
       return null;
     }
 
-    const code = data.code.trim().toUpperCase();
+    const code = finalizeLookupCode(data.code);
     const display = data.display.trim();
     const sort = Number(data.sort);
 
@@ -279,7 +312,7 @@ export function LookupValuesPage({ onNavigate }: LookupValuesPageProps) {
       return;
     }
 
-    const code = quickFormData.code.trim().toUpperCase();
+    const code = finalizeLookupCode(quickFormData.code);
     const display = quickFormData.display.trim();
     const sort = Number(quickFormData.sort);
 
@@ -660,7 +693,7 @@ export function LookupValuesPage({ onNavigate }: LookupValuesPageProps) {
                     onChange={(event) =>
                       setQuickFormData((previous) => ({
                         ...previous,
-                        code: event.target.value,
+                        code: normalizeLookupCodeInput(event.target.value),
                       }))
                     }
                   />
@@ -749,7 +782,7 @@ export function LookupValuesPage({ onNavigate }: LookupValuesPageProps) {
               onChange={(event) =>
                 setFormData((previous) => ({
                   ...previous,
-                  code: event.target.value,
+                  code: normalizeLookupCodeInput(event.target.value),
                 }))
               }
             />

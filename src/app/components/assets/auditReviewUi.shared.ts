@@ -74,12 +74,32 @@ export const formatAuditReviewLabel = (value?: string | null): string => {
     .join(" ");
 };
 
+export const getAuditReviewSelectedTypes = (job?: Pick<AuditReviewJobDetail, "selected_audit_trail_types" | "audit_trail_type"> | null): string[] => {
+  if (Array.isArray(job?.selected_audit_trail_types) && job.selected_audit_trail_types.length > 0) {
+    return job.selected_audit_trail_types;
+  }
+  return job?.audit_trail_type ? [job.audit_trail_type] : [];
+};
+
+export const getAuditReviewScoreLabel = (job?: AuditReviewJobDetail | null): string => {
+  if (job?.score_label) return job.score_label;
+  const scope = job?.review_scope;
+  if (scope === "FULL_GXP") return "Full GxP Audit Trail Score";
+  if (scope === "DOCUMENT_ONLY") return "Document Audit Trail Score";
+  if (scope === "OBJECT_ONLY") return "Object Audit Trail Score";
+  if (scope === "SYSTEM_ONLY") return "System Audit Trail Score";
+  if (scope === "DOMAIN_ONLY") return "Domain Audit Trail Score";
+  if (scope === "CUSTOM") return "Custom Audit Trail Review Score";
+  return "Login Audit Trail Score";
+};
+
 export const shortAuditReviewIdentifier = (value?: string | null): string =>
   value ? `${value.slice(0, 8)}...` : "Not saved";
 
 export const getAuditReviewJobStatusBadgeClass = (status?: string | null): string => {
   if (status === "REPORT_DRAFTED") return "border-emerald-200 bg-emerald-50 text-emerald-700";
   if (status === "ANALYZED" || status === "EXTRACTED") return "border-blue-200 bg-blue-50 text-blue-700";
+  if (status === "PARTIAL_EXTRACTION") return "border-amber-200 bg-amber-50 text-amber-700";
   if (status === "EXTRACTING" || status === "ANALYZING" || status === "REPORT_GENERATING") {
     return "border-amber-200 bg-amber-50 text-amber-700";
   }
@@ -112,4 +132,3 @@ export const getAuditReviewLastUpdated = (
   report: AuditReviewReportDetail | null,
 ): string | null =>
   report?.modified_dt || report?.created_dt || job?.modified_dt || job?.completed_at || job?.created_dt || null;
-

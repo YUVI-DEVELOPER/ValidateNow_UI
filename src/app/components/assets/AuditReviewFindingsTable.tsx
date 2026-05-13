@@ -77,13 +77,17 @@ const matchesFilter = (finding: AuditReviewFinding, filter: FindingFilter): bool
 
 export function AuditReviewFindingsTable({ findings, loading = false }: AuditReviewFindingsTableProps) {
   const [activeFilter, setActiveFilter] = useState<FindingFilter>("ALL");
+  const [auditTypeFilter, setAuditTypeFilter] = useState("ALL");
   const [query, setQuery] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("severity");
   const [expandedFindingId, setExpandedFindingId] = useState<string | null>(null);
 
   const filteredFindings = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
-    const rows = findings.filter((finding) => {
+    const auditTypeRows = auditTypeFilter === "ALL"
+      ? findings
+      : findings.filter((finding) => finding.audit_trail_type === auditTypeFilter);
+    const rows = auditTypeRows.filter((finding) => {
       if (!matchesFilter(finding, activeFilter)) return false;
       if (!normalizedQuery) return true;
 
@@ -108,7 +112,11 @@ export function AuditReviewFindingsTable({ findings, loading = false }: AuditRev
       if (sortKey === "impact") return right.score_impact - left.score_impact;
       return right.source_record_count - left.source_record_count;
     });
-  }, [activeFilter, findings, query, sortKey]);
+  }, [activeFilter, auditTypeFilter, findings, query, sortKey]);
+  const auditTypeOptions = useMemo(
+    () => Array.from(new Set(findings.map((finding) => finding.audit_trail_type).filter(Boolean))) as string[],
+    [findings],
+  );
 
   return (
     <section className="rounded-xl border border-slate-200 bg-white shadow-sm" aria-label="Audit review findings">
@@ -135,6 +143,34 @@ export function AuditReviewFindingsTable({ findings, loading = false }: AuditRev
         </div>
 
         <div className="mt-4 flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => setAuditTypeFilter("ALL")}
+            className={`inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-xs font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
+              auditTypeFilter === "ALL"
+                ? "border-blue-900 bg-blue-900 text-white"
+                : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50"
+            }`}
+          >
+            All Types
+          </button>
+          {auditTypeOptions.map((auditType) => (
+            <button
+              key={auditType}
+              type="button"
+              onClick={() => setAuditTypeFilter(auditType)}
+              className={`inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-xs font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
+                auditTypeFilter === auditType
+                  ? "border-blue-900 bg-blue-900 text-white"
+                  : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50"
+              }`}
+            >
+              {formatEvidenceLabel(auditType)}
+            </button>
+          ))}
+        </div>
+
+        <div className="mt-3 flex flex-wrap gap-2">
           {filters.map((filter) => {
             const selected = activeFilter === filter.key;
             return (
@@ -160,6 +196,7 @@ export function AuditReviewFindingsTable({ findings, loading = false }: AuditRev
         <TableHeader>
           <TableRow className="bg-slate-50">
             <TableHead className="font-semibold">Severity</TableHead>
+            <TableHead className="font-semibold">Audit Trail</TableHead>
             <TableHead className="font-semibold">Check Code</TableHead>
             <TableHead className="min-w-56 font-semibold">Finding Title</TableHead>
             <TableHead className="min-w-80 font-semibold">Finding Summary</TableHead>
@@ -170,13 +207,13 @@ export function AuditReviewFindingsTable({ findings, loading = false }: AuditRev
         <TableBody>
           {loading ? (
             <TableRow>
-              <TableCell colSpan={6} className="py-10 text-center text-slate-500">
+              <TableCell colSpan={7} className="py-10 text-center text-slate-500">
                 Loading audit findings...
               </TableCell>
             </TableRow>
           ) : filteredFindings.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={6} className="py-12">
+              <TableCell colSpan={7} className="py-12">
                 <div className="flex flex-col items-center justify-center text-center">
                   <div className="flex h-10 w-10 items-center justify-center rounded-full border border-emerald-200 bg-emerald-50 text-emerald-700">
                     <SearchX className="h-5 w-5" />
@@ -216,6 +253,11 @@ export function AuditReviewFindingsTable({ findings, loading = false }: AuditRev
                       </div>
                     </TableCell>
                     <TableCell className="align-top">
+                      <Badge variant="outline" className="border-slate-200 bg-slate-50 text-slate-700">
+                        {formatEvidenceLabel(finding.audit_trail_type || "unspecified")}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="align-top">
                       <div className="max-w-44 whitespace-normal break-words font-mono text-xs font-semibold text-slate-700">
                         {finding.check_code}
                       </div>
@@ -240,7 +282,7 @@ export function AuditReviewFindingsTable({ findings, loading = false }: AuditRev
                   </TableRow>
                   {expanded ? (
                     <TableRow className="bg-slate-50/70">
-                      <TableCell colSpan={6} className="px-4 py-3">
+                      <TableCell colSpan={7} className="px-4 py-3">
                         <div className="rounded-lg border border-slate-200 bg-white p-3">
                           <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                             <div>
